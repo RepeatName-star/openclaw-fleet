@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
-import WebSocket from "ws";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
 
 export type GatewayClient = {
   request: (method: string, params?: unknown) => Promise<unknown>;
@@ -19,6 +21,7 @@ type Pending = {
 };
 
 export function createGatewayClient(options: GatewayClientOptions): GatewayClient {
+  const WebSocket = require("ws") as typeof import("ws");
   const clientId = options.clientId ?? "openclaw-fleet-sidecar";
   const clientVersion = options.clientVersion ?? "0.1.0";
   const ws = new WebSocket(options.url);
