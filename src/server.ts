@@ -5,6 +5,7 @@ import type { RedisLike } from "./redis";
 import { registerEnrollRoutes } from "./routes/enroll";
 import { registerHealthRoutes } from "./routes/health";
 import { registerHeartbeatRoutes } from "./routes/heartbeat";
+import { registerTasksAckRoutes } from "./routes/tasks-ack";
 import { registerTasksPullRoutes } from "./routes/tasks-pull";
 
 type ServerOptions = {
@@ -19,5 +20,6 @@ export async function buildServer(options: ServerOptions = {}) {
   await registerEnrollRoutes(app, options);
   await registerHeartbeatRoutes(app, options);
   await registerTasksPullRoutes(app, options);
+  await registerTasksAckRoutes(app, options);
   return app;
 }
