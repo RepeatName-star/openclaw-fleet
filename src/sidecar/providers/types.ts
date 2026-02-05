@@ -1,0 +1,46 @@
+export type ConfigPatchParams = {
+  raw: string;
+  baseHash?: string;
+  note?: string;
+  sessionKey?: string;
+  restartDelayMs?: number;
+};
+
+export type SkillsInstallParams = {
+  name: string;
+  installId: string;
+  timeoutMs?: number;
+};
+
+export type SkillsUpdateParams = {
+  skillKey: string;
+  enabled?: boolean;
+  apiKey?: string;
+  env?: Record<string, string>;
+};
+
+export type MemoryReplaceParams = {
+  agentId: string;
+  content: string;
+  fileName?: string;
+};
+
+export type SessionResetParams = {
+  key: string;
+};
+
+export type AgentRunParams = {
+  message: string;
+  agentId?: string;
+  sessionKey?: string;
+  idempotencyKey?: string;
+};
+
+export interface SidecarProvider {
+  configPatch(params: ConfigPatchParams): Promise<void>;
+  skillsInstall(params: SkillsInstallParams): Promise<void>;
+  skillsUpdate(params: SkillsUpdateParams): Promise<void>;
+  memoryReplace(params: MemoryReplaceParams): Promise<void>;
+  sessionReset(params: SessionResetParams): Promise<void>;
+  agentRun(params: AgentRunParams): Promise<void>;
+}
