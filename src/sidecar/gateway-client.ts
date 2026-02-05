@@ -8,11 +8,34 @@ export type GatewayClient = {
   close: () => void;
 };
 
+export type GatewayConnectParams = {
+  minProtocol: number;
+  maxProtocol: number;
+  client: {
+    id: string;
+    displayName?: string;
+    version: string;
+    platform: string;
+    mode: string;
+    instanceId?: string;
+  };
+  auth?: {
+    token?: string;
+    password?: string;
+  };
+};
+
 type GatewayClientOptions = {
   url: string;
   token?: string;
   clientId?: string;
   clientVersion?: string;
+  clientMode?: string;
+  clientDisplayName?: string;
+  platform?: string;
+  instanceId?: string;
+  minProtocol?: number;
+  maxProtocol?: number;
 };
 
 type Pending = {
@@ -22,8 +45,6 @@ type Pending = {
 
 export function createGatewayClient(options: GatewayClientOptions): GatewayClient {
   const WebSocket = require("ws") as any;
-  const clientId = options.clientId ?? "openclaw-fleet-sidecar";
-  const clientVersion = options.clientVersion ?? "0.1.0";
   const ws = new WebSocket(options.url);
   const pending = new Map<string, Pending>();
   let readyResolve: (() => void) | null = null;
@@ -39,22 +60,13 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
       resolve: () => readyResolve?.(),
       reject: (err) => readyReject?.(err),
     });
+    const params = buildConnectParams(options);
     ws.send(
       JSON.stringify({
         type: "req",
         id,
         method: "connect",
-        params: {
-          minProtocol: 1,
-          maxProtocol: 1,
-          client: {
-            id: clientId,
-            version: clientVersion,
-            platform: process.platform,
-            mode: "operator",
-          },
-          auth: options.token ? { token: options.token } : undefined,
-        },
+        params,
       }),
     );
   });
@@ -104,5 +116,28 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
   return {
     request,
     close: () => ws.close(),
+  };
+}
+
+export function buildConnectParams(options: GatewayClientOptions): GatewayConnectParams {
+  const minProtocol = options.minProtocol ?? 1;
+  const maxProtocol = options.maxProtocol ?? 1;
+  const clientId = options.clientId ?? "gateway-client";
+  const clientVersion = options.clientVersion ?? "0.1.0";
+  const clientMode = options.clientMode ?? "backend";
+  const client = {
+    id: clientId,
+    displayName: options.clientDisplayName,
+    version: clientVersion,
+    platform: options.platform ?? process.platform,
+    mode: clientMode,
+    instanceId: options.instanceId,
+  };
+  const auth = options.token ? { token: options.token } : undefined;
+  return {
+    minProtocol,
+    maxProtocol,
+    client,
+    auth,
   };
 }
