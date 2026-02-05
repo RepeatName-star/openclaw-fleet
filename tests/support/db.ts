@@ -12,6 +12,11 @@ export function initTestDb() {
   return db;
 }
 
+export function createTestPool(db: ReturnType<typeof initTestDb>) {
+  const adapter = db.adapters.createPg();
+  return new adapter.Pool();
+}
+
 export async function runMigrations(db: ReturnType<typeof initTestDb>) {
   const dir = path.join(process.cwd(), "migrations");
   const entries = await fs.readdir(dir);
