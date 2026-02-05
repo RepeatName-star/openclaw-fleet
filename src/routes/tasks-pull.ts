@@ -36,7 +36,7 @@ export async function registerTasksPullRoutes(app: FastifyInstance, opts: TasksP
       "select group_id from group_instances where instance_id = $1",
       [instanceId],
     );
-    const groupIds = groups.rows.map((row) => row.group_id as string);
+    const groupIds = groups.rows.map((row: { group_id: string }) => row.group_id as string);
 
     const candidates = await opts.pool.query(
       "select * from tasks where status = 'pending' and (target_type = 'instance' and target_id = $1 or target_type = 'group' and target_id = any($2::text[])) and (expires_at is null or expires_at > now()) order by created_at asc limit $3",

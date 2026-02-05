@@ -21,7 +21,7 @@ type Pending = {
 };
 
 export function createGatewayClient(options: GatewayClientOptions): GatewayClient {
-  const WebSocket = require("ws") as typeof import("ws");
+  const WebSocket = require("ws") as any;
   const clientId = options.clientId ?? "openclaw-fleet-sidecar";
   const clientVersion = options.clientVersion ?? "0.1.0";
   const ws = new WebSocket(options.url);
@@ -59,7 +59,7 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
     );
   });
 
-  ws.on("message", (data) => {
+  ws.on("message", (data: any) => {
     let parsed: any;
     try {
       parsed = JSON.parse(data.toString());
@@ -80,8 +80,8 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
     }
   });
 
-  ws.on("error", (err) => {
-    readyReject?.(err as Error);
+  ws.on("error", (err: Error) => {
+    readyReject?.(err);
   });
 
   async function request(method: string, params?: unknown): Promise<unknown> {
