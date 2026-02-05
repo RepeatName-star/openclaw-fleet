@@ -24,3 +24,7 @@ Run all SQL files in `migrations/` against your Postgres database. The MVP inclu
 ## API
 
 See `docs/api.md` for endpoints and payloads.
+
+## Sidecar
+
+See `docs/sidecar.md` for sidecar configuration and usage.
