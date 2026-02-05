@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --enable-source-maps --loader ts-node/esm src/index.ts",
+    "sidecar:dev": "node --enable-source-maps --loader ts-node/esm src/sidecar/cli.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "test": "vitest run"
