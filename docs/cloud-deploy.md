@@ -35,7 +35,8 @@ Start control plane:
 
 ```bash
 pnpm install
-pnpm dev
+pnpm build
+pnpm start
 ```
 
 > Production note: you can `pnpm build` and run `node dist/index.js` under systemd, but `pnpm dev` is fine for testing.
@@ -64,7 +65,7 @@ Notes:
 Start sidecar:
 
 ```bash
-pnpm sidecar:dev
+pnpm sidecar:start
 ```
 
 ## 5) Test End-to-End

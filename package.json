@@ -3,8 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --enable-source-maps --loader ts-node/esm src/index.ts",
-    "sidecar:dev": "node --enable-source-maps --loader ts-node/esm src/sidecar/cli.ts",
+    "dev": "pnpm build && node dist/index.js",
+    "dev:ts": "node --enable-source-maps --loader ts-node/esm src/index.ts",
+    "sidecar:dev": "pnpm build && node dist/sidecar/cli.js",
+    "sidecar:dev:ts": "node --enable-source-maps --loader ts-node/esm src/sidecar/cli.ts",
+    "sidecar:start": "node dist/sidecar/cli.js",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "test": "vitest run"

@@ -7,7 +7,8 @@ Minimal control plane API to manage OpenClaw sidecars: enrollment, heartbeats, t
 ```bash
 pnpm install
 cp .env.example .env
-pnpm dev
+pnpm build
+pnpm start
 ```
 
 ## Environment
