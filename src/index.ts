@@ -1,7 +1,7 @@
-import { loadConfig } from "./config";
-import { createPool } from "./db";
-import { createRedis } from "./redis";
-import { buildServer } from "./server";
+import { loadConfig } from "./config.js";
+import { createPool } from "./db.js";
+import { createRedis } from "./redis.js";
+import { buildServer } from "./server.js";
 
 const config = loadConfig(process.env);
 const pool = createPool(config.databaseUrl);

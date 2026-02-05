@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
-import { requireDeviceToken } from "../auth";
+import { requireDeviceToken } from "../auth.js";
 
 const AckSchema = z.object({
   task_id: z.string().min(1),

@@ -1,4 +1,4 @@
-import { initTestDb, runMigrations } from "./support/db";
+import { initTestDb, runMigrations } from "./support/db.js";
 
 test("migrations create core tables", async () => {
   const db = initTestDb();

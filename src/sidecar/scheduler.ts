@@ -1,4 +1,4 @@
-import type { createExecutor } from "./executor";
+import type { createExecutor } from "./executor.js";
 
 type ControlPlaneClient = {
   heartbeat: (deviceToken: string) => Promise<void>;

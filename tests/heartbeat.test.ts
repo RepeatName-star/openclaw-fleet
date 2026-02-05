@@ -1,6 +1,6 @@
-import { buildServer } from "../src/server";
-import { issueDeviceToken } from "../src/auth";
-import { createTestPool, initTestDb, runMigrations } from "./support/db";
+import { buildServer } from "../src/server.js";
+import { issueDeviceToken } from "../src/auth.js";
+import { createTestPool, initTestDb, runMigrations } from "./support/db.js";
 
 test("POST /v1/heartbeat updates last_seen", async () => {
   const db = initTestDb();

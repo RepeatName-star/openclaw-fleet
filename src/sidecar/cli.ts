@@ -1,14 +1,14 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { loadSidecarConfig } from "./config";
-import { createControlPlaneClient } from "./control-plane";
-import { createExecutor } from "./executor";
-import { createGatewayClient } from "./gateway-client";
-import { createScheduler } from "./scheduler";
-import { createStateStore } from "./state-store";
-import { createGenericHttpProvider } from "./providers/generic-http";
-import { createOpenClawProvider } from "./providers/openclaw";
+import { loadSidecarConfig } from "./config.js";
+import { createControlPlaneClient } from "./control-plane.js";
+import { createExecutor } from "./executor.js";
+import { createGatewayClient } from "./gateway-client.js";
+import { createScheduler } from "./scheduler.js";
+import { createStateStore } from "./state-store.js";
+import { createGenericHttpProvider } from "./providers/generic-http.js";
+import { createOpenClawProvider } from "./providers/openclaw.js";
 
 export async function startSidecar(env: NodeJS.ProcessEnv = process.env) {
   const config = loadSidecarConfig(env);

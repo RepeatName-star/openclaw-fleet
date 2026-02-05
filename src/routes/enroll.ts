@@ -1,8 +1,8 @@
 import { z } from "zod";
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
-import type { AppConfig } from "../config";
-import { issueDeviceToken } from "../auth";
+import type { AppConfig } from "../config.js";
+import { issueDeviceToken } from "../auth.js";
 
 const EnrollSchema = z.object({
   enrollment_token: z.string().min(1),

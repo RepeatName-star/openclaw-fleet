@@ -6,7 +6,7 @@ import type {
   SkillsInstallParams,
   SkillsUpdateParams,
   AgentRunParams,
-} from "./providers/types";
+} from "./providers/types.js";
 
 type Task = {
   id: string;

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
-import type { RedisLike } from "../redis";
-import { requireDeviceToken } from "../auth";
+import type { RedisLike } from "../redis.js";
+import { requireDeviceToken } from "../auth.js";
 
 type HeartbeatOptions = {
   pool?: Pool;
