@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
+const DEFAULT_PROTOCOL_VERSION = 3;
 
 export type GatewayClient = {
   request: (method: string, params?: unknown) => Promise<unknown>;
@@ -120,8 +121,8 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
 }
 
 export function buildConnectParams(options: GatewayClientOptions): GatewayConnectParams {
-  const minProtocol = options.minProtocol ?? 1;
-  const maxProtocol = options.maxProtocol ?? 1;
+  const minProtocol = options.minProtocol ?? DEFAULT_PROTOCOL_VERSION;
+  const maxProtocol = options.maxProtocol ?? DEFAULT_PROTOCOL_VERSION;
   const clientId = options.clientId ?? "gateway-client";
   const clientVersion = options.clientVersion ?? "0.1.0";
   const clientMode = options.clientMode ?? "backend";
