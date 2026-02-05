@@ -28,3 +28,7 @@ See `docs/api.md` for endpoints and payloads.
 ## Sidecar
 
 See `docs/sidecar.md` for sidecar configuration and usage.
+
+## Cloud Deploy
+
+See `docs/cloud-deploy.md` for a single-host cloud deployment and test flow.
