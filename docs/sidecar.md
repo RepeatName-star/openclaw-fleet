@@ -6,9 +6,10 @@ The sidecar is a Node/TypeScript process that polls the control plane for tasks 
 
 ```bash
 pnpm install
+pnpm build
 CONTROL_PLANE_URL=http://localhost:3000 \
 ENROLLMENT_TOKEN=change-me \
-pnpm sidecar:dev
+pnpm sidecar:start
 ```
 
 ## Configuration File
@@ -52,4 +53,3 @@ Example:
 ### Generic HTTP
 - Requires `GENERIC_PROVIDER_URL`.
 - Expects minimal endpoints: `/config/patch`, `/skills/install`, `/skills`, `/memory`, `/sessions/reset`, `/agent/run`.
-
