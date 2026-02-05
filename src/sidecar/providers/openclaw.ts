@@ -7,8 +7,8 @@ import type {
   SidecarProvider,
   SkillsInstallParams,
   SkillsUpdateParams,
-} from "./types";
-import type { GatewayClient } from "../gateway-client";
+} from "./types.js";
+import type { GatewayClient } from "../gateway-client.js";
 
 export type OpenClawProviderOptions = {
   gateway: GatewayClient;

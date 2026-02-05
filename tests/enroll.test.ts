@@ -1,5 +1,5 @@
-import { buildServer } from "../src/server";
-import { createTestPool, initTestDb, runMigrations } from "./support/db";
+import { buildServer } from "../src/server.js";
+import { createTestPool, initTestDb, runMigrations } from "./support/db.js";
 
 test("POST /v1/enroll issues device token", async () => {
   const db = initTestDb();

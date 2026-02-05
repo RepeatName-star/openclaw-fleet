@@ -1,4 +1,4 @@
-import { buildServer } from "../src/server";
+import { buildServer } from "../src/server.js";
 
 test("GET /health returns ok", async () => {
   const app = await buildServer();

@@ -1,4 +1,4 @@
-import { createControlPlaneClient } from "../../src/sidecar/control-plane";
+import { createControlPlaneClient } from "../../src/sidecar/control-plane.js";
 
 test("enroll returns device token", async () => {
   const fetchMock = async () => ({

@@ -1,4 +1,4 @@
-import { createGenericHttpProvider } from "../../../src/sidecar/providers/generic-http";
+import { createGenericHttpProvider } from "../../../src/sidecar/providers/generic-http.js";
 
 test("generic provider calls /skills endpoint", async () => {
   let called = false;

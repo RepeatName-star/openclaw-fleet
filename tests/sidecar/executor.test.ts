@@ -1,4 +1,4 @@
-import { createExecutor } from "../../src/sidecar/executor";
+import { createExecutor } from "../../src/sidecar/executor.js";
 
 test("executor skips already executed tasks", async () => {
   const state = { executed: { t1: true } } as any;

@@ -1,8 +1,8 @@
 import { z } from "zod";
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
-import type { RedisLike } from "../redis";
-import { requireDeviceToken } from "../auth";
+import type { RedisLike } from "../redis.js";
+import { requireDeviceToken } from "../auth.js";
 
 const PullSchema = z.object({
   limit: z.number().int().min(1).max(50).optional(),

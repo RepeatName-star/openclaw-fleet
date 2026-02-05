@@ -1,4 +1,4 @@
-import { createOpenClawProvider } from "../../../src/sidecar/providers/openclaw";
+import { createOpenClawProvider } from "../../../src/sidecar/providers/openclaw.js";
 
 test("openclaw provider maps memory replace", async () => {
   const calls: Array<{ method: string }> = [];

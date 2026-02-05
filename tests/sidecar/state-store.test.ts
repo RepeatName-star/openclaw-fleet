@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { createStateStore } from "../../src/sidecar/state-store";
+import { createStateStore } from "../../src/sidecar/state-store.js";
 
 const tmp = "/tmp/sidecar-state-test.json";
 

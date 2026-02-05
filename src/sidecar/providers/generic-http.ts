@@ -6,7 +6,7 @@ import type {
   SidecarProvider,
   SkillsInstallParams,
   SkillsUpdateParams,
-} from "./types";
+} from "./types.js";
 
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
