@@ -1,55 +1,66 @@
 # Sidecar
 
-The sidecar is a Node/TypeScript process that polls the control plane for tasks and executes them against a local provider (OpenClaw Gateway or a generic HTTP agent).
+The sidecar connects your OpenClaw instance to the fleet control plane for enrollment, heartbeats, and task execution.
 
-## Quick Start
+## Install
 
 ```bash
 pnpm install
 pnpm build
-CONTROL_PLANE_URL=http://localhost:3000 \
-ENROLLMENT_TOKEN=change-me \
-pnpm sidecar:start
 ```
 
-## Configuration File
+## Configure
 
-Default path: `~/.openclaw-fleet/sidecar.json`
+Create `~/.openclaw-fleet/sidecar.json`:
 
-Example:
 ```json
 {
-  "controlPlaneUrl": "http://localhost:3000",
+  "controlPlaneUrl": "http://127.0.0.1:3000",
   "enrollmentToken": "change-me",
   "provider": "openclaw",
   "pollIntervalMs": 5000,
   "concurrency": 2,
-  "statePath": "/home/user/.openclaw-fleet/sidecar-state.json",
-  "openclawGatewayUrl": "http://127.0.0.1:18793",
-  "openclawGatewayToken": "<optional>"
+  "statePath": "/root/.openclaw-fleet/sidecar-state.json",
+  "openclawGatewayUrl": "ws://127.0.0.1:18789"
 }
 ```
 
-## Environment Overrides
+Optional:
+- `openclawGatewayToken` (token auth for gateway; default auto-read from `~/.openclaw/openclaw.json`)
+- `deviceToken` (reuse a device token instead of enrolling)
 
-- `SIDECAR_CONFIG` (override config file path)
-- `CONTROL_PLANE_URL`
-- `ENROLLMENT_TOKEN`
-- `DEVICE_TOKEN`
-- `PROVIDER` (`openclaw` or `generic`)
-- `POLL_INTERVAL_MS`
-- `CONCURRENCY`
-- `STATE_PATH`
-- `OPENCLAW_GATEWAY_URL`
-- `OPENCLAW_GATEWAY_TOKEN`
-- `GENERIC_PROVIDER_URL`
+## Run
 
-## Provider Modes
+```bash
+pnpm sidecar:start
+```
 
-### OpenClaw
-- Uses Gateway API at `OPENCLAW_GATEWAY_URL`.
-- If `OPENCLAW_GATEWAY_TOKEN` is not set, it will try to read `~/.openclaw/openclaw.json` for a token (best-effort).
+## OpenClaw Gateway Auth
 
-### Generic HTTP
-- Requires `GENERIC_PROVIDER_URL`.
-- Expects minimal endpoints: `/config/patch`, `/skills/install`, `/skills`, `/memory`, `/sessions/reset`, `/agent/run`.
+Sidecar will look for a gateway token in `~/.openclaw/openclaw.json` at:
+
+```json
+{
+  "gateway": {
+    "auth": {
+      "token": "..."
+    }
+  }
+}
+```
+
+If you set `openclawGatewayToken` in the sidecar config, that value wins.
+
+## Troubleshooting
+
+- `device identity required`: ensure OpenClaw gateway expects device auth and the sidecar has a device identity (created automatically at `~/.openclaw-fleet/identity/device.json`).
+- `unauthorized: gateway token missing`: ensure `openclawGatewayToken` is set or `~/.openclaw/openclaw.json` exists with `gateway.auth.token`.
+- Tasks stuck in `leased`: check sidecar logs and gateway connectivity, then inspect `task_attempts` and `tasks` tables.
+
+## Logging
+
+Sidecar logs to stdout/stderr and `~/.openclaw-fleet/sidecar.log` by default. Override with:
+
+```bash
+OPENCLAW_SIDECAR_LOG_PATH=/path/to/sidecar.log pnpm sidecar:start
+```
