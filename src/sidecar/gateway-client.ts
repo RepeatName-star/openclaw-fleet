@@ -3,9 +3,10 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const DEFAULT_PROTOCOL_VERSION = 3;
+const DEFAULT_REQUEST_TIMEOUT_MS = 30000;
 
 export type GatewayClient = {
-  request: (method: string, params?: unknown) => Promise<unknown>;
+  request: (method: string, params?: unknown, opts?: { timeoutMs?: number }) => Promise<unknown>;
   close: () => void;
 };
 
@@ -37,22 +38,46 @@ type GatewayClientOptions = {
   instanceId?: string;
   minProtocol?: number;
   maxProtocol?: number;
+  requestTimeoutMs?: number;
+  wsFactory?: (url: string) => {
+    on: (event: string, handler: (arg1?: any, arg2?: any) => void) => void;
+    send: (data: string) => void;
+    close: (code?: number, reason?: string) => void;
+  };
 };
 
 type Pending = {
   resolve: (value: unknown) => void;
   reject: (err: Error) => void;
+  timer?: NodeJS.Timeout | null;
 };
 
 export function createGatewayClient(options: GatewayClientOptions): GatewayClient {
-  const WebSocket = require("ws") as any;
-  const ws = new WebSocket(options.url);
+  const ws =
+    options.wsFactory?.(options.url) ??
+    (() => {
+      const WebSocket = require("ws") as any;
+      return new WebSocket(options.url);
+    })();
   const pending = new Map<string, Pending>();
   let readyResolve: (() => void) | null = null;
   let readyReject: ((err: Error) => void) | null = null;
+  let readySettled = false;
   const ready = new Promise<void>((resolve, reject) => {
-    readyResolve = resolve;
-    readyReject = reject;
+    readyResolve = () => {
+      if (readySettled) {
+        return;
+      }
+      readySettled = true;
+      resolve();
+    };
+    readyReject = (err) => {
+      if (readySettled) {
+        return;
+      }
+      readySettled = true;
+      reject(err);
+    };
   });
 
   ws.on("open", () => {
@@ -85,6 +110,9 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
         return;
       }
       pending.delete(parsed.id);
+      if (handler.timer) {
+        clearTimeout(handler.timer);
+      }
       if (parsed.ok) {
         handler.resolve(parsed.payload);
       } else {
@@ -93,24 +121,81 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
     }
   });
 
-  ws.on("error", (err: Error) => {
-    readyReject?.(err);
+  const rejectAllPending = (err: Error) => {
+    for (const [, handler] of pending) {
+      if (handler.timer) {
+        clearTimeout(handler.timer);
+      }
+      handler.reject(err);
+    }
+    pending.clear();
+  };
+
+  ws.on("close", (code?: number, reason?: any) => {
+    const text = typeof reason === "string" ? reason : reason?.toString?.() ?? "";
+    const err = new Error(`gateway closed (${code ?? 1000}): ${text}`);
+    if (!readySettled) {
+      readyReject?.(err);
+    }
+    rejectAllPending(err);
   });
 
-  async function request(method: string, params?: unknown): Promise<unknown> {
-    await ready;
+  ws.on("error", (err: Error) => {
+    if (!readySettled) {
+      readyReject?.(err);
+    }
+    rejectAllPending(err instanceof Error ? err : new Error(String(err)));
+  });
+
+  function request(
+    method: string,
+    params?: unknown,
+    opts?: { timeoutMs?: number },
+  ): Promise<unknown> {
     const id = randomUUID();
     const payload = new Promise<unknown>((resolve, reject) => {
-      pending.set(id, { resolve, reject });
+      const timeoutMs = opts?.timeoutMs ?? options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+      let timer: NodeJS.Timeout | null = null;
+      if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
+        timer = setTimeout(() => {
+          pending.delete(id);
+          reject(new Error(`gateway request timeout after ${timeoutMs}ms`));
+        }, timeoutMs);
+        timer.unref?.();
+      }
+      pending.set(id, { resolve, reject, timer });
     });
-    ws.send(
-      JSON.stringify({
-        type: "req",
-        id,
-        method,
-        params,
-      }),
-    );
+    ready
+      .then(() => {
+        if (!pending.has(id)) {
+          return;
+        }
+        try {
+          ws.send(
+            JSON.stringify({
+              type: "req",
+              id,
+              method,
+              params,
+            }),
+          );
+        } catch (err) {
+          const handler = pending.get(id);
+          if (handler?.timer) {
+            clearTimeout(handler.timer);
+          }
+          pending.delete(id);
+          handler?.reject(err instanceof Error ? err : new Error(String(err)));
+        }
+      })
+      .catch((err) => {
+        const handler = pending.get(id);
+        if (handler?.timer) {
+          clearTimeout(handler.timer);
+        }
+        pending.delete(id);
+        handler?.reject(err instanceof Error ? err : new Error(String(err)));
+      });
     return payload;
   }
 
