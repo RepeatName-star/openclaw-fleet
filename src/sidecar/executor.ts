@@ -22,6 +22,7 @@ type ExecutorResult = {
   processed: number;
   skipped: number;
   failed: number;
+  errors: Record<string, string>;
 };
 
 type ExecutorOptions = {
@@ -55,6 +56,7 @@ export function createExecutor(options: ExecutorOptions) {
     let processed = 0;
     let skipped = 0;
     let failed = 0;
+    const errors: Record<string, string> = {};
 
     for (const task of tasks) {
       if (state.executed[task.id]) {
@@ -65,12 +67,13 @@ export function createExecutor(options: ExecutorOptions) {
         await dispatch(task);
         state.executed[task.id] = true;
         processed += 1;
-      } catch {
+      } catch (err) {
+        errors[task.id] = err instanceof Error ? err.message : String(err);
         failed += 1;
       }
     }
 
-    return { processed, skipped, failed };
+    return { processed, skipped, failed, errors };
   }
 
   return {

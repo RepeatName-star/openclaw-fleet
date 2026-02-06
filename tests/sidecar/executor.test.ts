@@ -7,3 +7,16 @@ test("executor skips already executed tasks", async () => {
   const res = await exec.run([{ id: "t1", action: "skills.update", payload: {} }]);
   expect(res.skipped).toBe(1);
 });
+
+test("executor records failure details", async () => {
+  const state = { executed: {} } as any;
+  const provider = {
+    sessionReset: async () => {
+      throw new Error("boom");
+    },
+  } as any;
+  const exec = createExecutor({ provider, state });
+  const res = await exec.run([{ id: "t2", action: "session.reset", payload: {} }]);
+  expect(res.failed).toBe(1);
+  expect(res.errors?.t2).toMatch(/boom/);
+});
