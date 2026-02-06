@@ -42,7 +42,8 @@ export function createScheduler(options: SchedulerOptions) {
       logInfo("task start", { id: task.id, action: task.action });
       const result = await options.executor.run([task]);
       const status = result.failed > 0 ? "error" : "ok";
-      const errorMessage = result.failed > 0 ? "execution failed" : undefined;
+      const errorMessage =
+        result.failed > 0 ? result.errors?.[task.id] ?? "execution failed" : undefined;
       if (result.skipped > 0) {
         logWarn("task skipped", { id: task.id, action: task.action });
       }
