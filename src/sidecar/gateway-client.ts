@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
+import { logError, logWarn } from "./log.js";
 
 const require = createRequire(import.meta.url);
 const DEFAULT_PROTOCOL_VERSION = 3;
@@ -138,6 +139,7 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
       readyReject?.(err);
     }
     rejectAllPending(err);
+    logWarn(err.message);
   });
 
   ws.on("error", (err: Error) => {
@@ -145,6 +147,7 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
       readyReject?.(err);
     }
     rejectAllPending(err instanceof Error ? err : new Error(String(err)));
+    logError(`gateway error: ${String(err)}`);
   });
 
   function request(

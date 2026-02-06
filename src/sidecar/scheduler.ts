@@ -1,4 +1,5 @@
 import type { createExecutor } from "./executor.js";
+import { logError, logInfo, logWarn } from "./log.js";
 
 type ControlPlaneClient = {
   heartbeat: (deviceToken: string) => Promise<void>;
@@ -20,19 +21,36 @@ export function createScheduler(options: SchedulerOptions) {
   let timer: NodeJS.Timeout | null = null;
 
   async function runOnce() {
-    await options.controlPlane.heartbeat(options.deviceToken);
-    const tasks = await options.controlPlane.pullTasks(options.deviceToken, options.concurrency * 2);
+    try {
+      await options.controlPlane.heartbeat(options.deviceToken);
+    } catch (err) {
+      logError("heartbeat failed", { error: String(err) });
+      return;
+    }
+    let tasks: any[] = [];
+    try {
+      tasks = await options.controlPlane.pullTasks(options.deviceToken, options.concurrency * 2);
+    } catch (err) {
+      logError("pull tasks failed", { error: String(err) });
+      return;
+    }
     if (tasks.length === 0) {
       return;
     }
+    logInfo("pulled tasks", { count: tasks.length });
     await runWithLimit(tasks, options.concurrency, async (task) => {
+      logInfo("task start", { id: task.id, action: task.action });
       const result = await options.executor.run([task]);
-      if (result.failed > 0) {
-        await options.controlPlane.ackTask(options.deviceToken, task.id, "error", "execution failed");
-      } else if (result.skipped > 0) {
-        await options.controlPlane.ackTask(options.deviceToken, task.id, "ok");
-      } else {
-        await options.controlPlane.ackTask(options.deviceToken, task.id, "ok");
+      const status = result.failed > 0 ? "error" : "ok";
+      const errorMessage = result.failed > 0 ? "execution failed" : undefined;
+      if (result.skipped > 0) {
+        logWarn("task skipped", { id: task.id, action: task.action });
+      }
+      try {
+        await options.controlPlane.ackTask(options.deviceToken, task.id, status, errorMessage);
+        logInfo("task ack", { id: task.id, status });
+      } catch (err) {
+        logError("task ack failed", { id: task.id, status, error: String(err) });
       }
     });
   }
@@ -42,7 +60,9 @@ export function createScheduler(options: SchedulerOptions) {
       return;
     }
     timer = setInterval(() => {
-      runOnce().catch(() => {});
+      runOnce().catch((err) => {
+        logError("scheduler tick failed", { error: String(err) });
+      });
     }, options.pollIntervalMs);
   }
 

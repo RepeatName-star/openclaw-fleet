@@ -9,9 +9,16 @@ import { createScheduler } from "./scheduler.js";
 import { createStateStore } from "./state-store.js";
 import { createGenericHttpProvider } from "./providers/generic-http.js";
 import { createOpenClawProvider } from "./providers/openclaw.js";
+import { logError, logInfo } from "./log.js";
 
 export async function startSidecar(env: NodeJS.ProcessEnv = process.env) {
   const config = loadSidecarConfig(env);
+  logInfo("sidecar start", {
+    controlPlaneUrl: config.controlPlaneUrl,
+    provider: config.provider,
+    pollIntervalMs: config.pollIntervalMs,
+    concurrency: config.concurrency,
+  });
   const stateStore = createStateStore(config.statePath);
   const state = await stateStore.load();
   const controlPlane = createControlPlaneClient({ baseUrl: config.controlPlaneUrl });
@@ -72,7 +79,7 @@ function readOpenClawGatewayToken(): string | undefined {
 
 if (process.argv[1] && process.argv[1].includes("cli")) {
   startSidecar().catch((err) => {
-    console.error(err);
+    logError("sidecar crashed", { error: String(err) });
     process.exit(1);
   });
 }
