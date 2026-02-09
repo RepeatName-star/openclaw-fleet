@@ -49,7 +49,11 @@ export function createScheduler(options: SchedulerOptions) {
       }
       try {
         await options.controlPlane.ackTask(options.deviceToken, task.id, status, errorMessage);
-        logInfo("task ack", { id: task.id, status });
+        const ackMeta =
+          status === "error"
+            ? { id: task.id, status, error: errorMessage }
+            : { id: task.id, status };
+        logInfo("task ack", ackMeta);
       } catch (err) {
         logError("task ack failed", { id: task.id, status, error: String(err) });
       }
