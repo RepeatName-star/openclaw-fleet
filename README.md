@@ -11,6 +11,21 @@ pnpm build
 pnpm start
 ```
 
+## UI
+
+The control plane serves the UI from `dist/ui` if it exists.
+
+```bash
+pnpm ui:build
+pnpm start
+```
+
+For UI development:
+
+```bash
+pnpm ui:dev
+```
+
 ## Environment
 
 - `PORT`: server port (default 3000)
@@ -25,6 +40,14 @@ Run all SQL files in `migrations/` against your Postgres database. The MVP inclu
 ## API
 
 See `docs/api.md` for endpoints and payloads.
+UI-related read endpoints:
+- `GET /v1/instances`
+- `GET /v1/instances/:id`
+- `PATCH /v1/instances/:id`
+- `GET /v1/instances/:id/skills`
+- `GET /v1/tasks`
+- `GET /v1/tasks/:id`
+- `GET /v1/tasks/:id/attempts`
 
 ## Sidecar
 
