@@ -7,6 +7,7 @@ const AckSchema = z.object({
   task_id: z.string().min(1),
   status: z.enum(["ok", "error"]),
   error: z.string().optional(),
+  result: z.unknown().optional(),
 });
 
 type TasksAckOptions = {
@@ -34,7 +35,7 @@ export async function registerTasksAckRoutes(app: FastifyInstance, opts: TasksAc
 
     const taskId = parsed.data.task_id;
     const taskRes = await opts.pool.query(
-      "select id, attempts from tasks where id = $1",
+      "select id, attempts, action, target_type, target_id from tasks where id = $1",
       [taskId],
     );
     if (!taskRes.rowCount) {
@@ -42,16 +43,25 @@ export async function registerTasksAckRoutes(app: FastifyInstance, opts: TasksAc
       return;
     }
     const currentAttempts = Number(taskRes.rows[0].attempts ?? 0);
+    const taskAction = taskRes.rows[0].action as string;
+    const taskTargetType = taskRes.rows[0].target_type as string;
+    const taskTargetId = taskRes.rows[0].target_id as string;
 
     if (parsed.data.status === "ok") {
       await opts.pool.query(
-        "update tasks set status = 'done', updated_at = now() where id = $1",
-        [taskId],
+        "update tasks set status = 'done', result = $2, updated_at = now() where id = $1",
+        [taskId, parsed.data.result ?? null],
       );
       await opts.pool.query(
         "insert into task_attempts (task_id, attempt, status) values ($1, $2, $3)",
         [taskId, currentAttempts, "ok"],
       );
+      if (taskAction === "skills.status" && taskTargetType === "instance") {
+        await opts.pool.query(
+          "update instances set skills_snapshot = $2, skills_snapshot_at = now() where id = $1",
+          [taskTargetId, parsed.data.result ?? {}],
+        );
+      }
       reply.send({ ok: true });
       return;
     }

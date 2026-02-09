@@ -19,6 +19,8 @@ export type SkillsUpdateParams = {
   env?: Record<string, string>;
 };
 
+export type SkillsStatusParams = Record<string, never>;
+
 export type MemoryReplaceParams = {
   agentId: string;
   content: string;
@@ -40,6 +42,7 @@ export interface SidecarProvider {
   configPatch(params: ConfigPatchParams): Promise<void>;
   skillsInstall(params: SkillsInstallParams): Promise<void>;
   skillsUpdate(params: SkillsUpdateParams): Promise<void>;
+  skillsStatus(params: SkillsStatusParams): Promise<unknown>;
   memoryReplace(params: MemoryReplaceParams): Promise<void>;
   sessionReset(params: SessionResetParams): Promise<void>;
   agentRun(params: AgentRunParams): Promise<void>;

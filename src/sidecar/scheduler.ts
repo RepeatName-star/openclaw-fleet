@@ -4,7 +4,13 @@ import { logError, logInfo, logWarn } from "./log.js";
 type ControlPlaneClient = {
   heartbeat: (deviceToken: string) => Promise<void>;
   pullTasks: (deviceToken: string, limit: number) => Promise<any[]>;
-  ackTask: (deviceToken: string, taskId: string, status: "ok" | "error", error?: string) => Promise<void>;
+  ackTask: (
+    deviceToken: string,
+    taskId: string,
+    status: "ok" | "error",
+    error?: string,
+    result?: unknown,
+  ) => Promise<void>;
 };
 
 type Executor = ReturnType<typeof createExecutor>;
@@ -44,11 +50,18 @@ export function createScheduler(options: SchedulerOptions) {
       const status = result.failed > 0 ? "error" : "ok";
       const errorMessage =
         result.failed > 0 ? result.errors?.[task.id] ?? "execution failed" : undefined;
+      const taskResult = status === "ok" ? result.results?.[task.id] : undefined;
       if (result.skipped > 0) {
         logWarn("task skipped", { id: task.id, action: task.action });
       }
       try {
-        await options.controlPlane.ackTask(options.deviceToken, task.id, status, errorMessage);
+        await options.controlPlane.ackTask(
+          options.deviceToken,
+          task.id,
+          status,
+          errorMessage,
+          taskResult,
+        );
         const ackMeta =
           status === "error"
             ? { id: task.id, status, error: errorMessage }
