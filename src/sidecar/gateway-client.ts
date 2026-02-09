@@ -312,18 +312,19 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
       clearTimeout(connectTimer);
       connectTimer = null;
     }
-    ws =
+    const socket =
       options.wsFactory?.(options.url) ??
       (() => {
         const WebSocket = require("ws") as any;
         return new WebSocket(options.url);
       })();
-    ws.on("open", () => {
+    ws = socket;
+    socket.on("open", () => {
       queueConnect();
     });
-    ws.on("message", handleMessage);
-    ws.on("close", handleClose);
-    ws.on("error", handleError);
+    socket.on("message", handleMessage);
+    socket.on("close", handleClose);
+    socket.on("error", handleError);
   };
 
   openSocket();
