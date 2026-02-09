@@ -60,6 +60,7 @@ type GatewayClientOptions = {
   scopes?: string[];
   deviceIdentity?: DeviceIdentity;
   requestTimeoutMs?: number;
+  reconnectDelayMs?: number;
   wsFactory?: (url: string) => {
     on: (event: string, handler: (arg1?: any, arg2?: any) => void) => void;
     send: (data: string) => void;
@@ -111,36 +112,55 @@ function buildDeviceAuthPayload(params: DeviceAuthPayloadParams): string {
 }
 
 export function createGatewayClient(options: GatewayClientOptions): GatewayClient {
-  const ws =
-    options.wsFactory?.(options.url) ??
-    (() => {
-      const WebSocket = require("ws") as any;
-      return new WebSocket(options.url);
-    })();
   const pending = new Map<string, Pending>();
+  const deviceIdentity = options.deviceIdentity ?? loadOrCreateDeviceIdentity();
+  const reconnectDelayMs = options.reconnectDelayMs ?? 1000;
+  let ws: ReturnType<NonNullable<GatewayClientOptions["wsFactory"]>> | null = null;
   let readyResolve: (() => void) | null = null;
   let readyReject: ((err: Error) => void) | null = null;
   let readySettled = false;
-  const ready = new Promise<void>((resolve, reject) => {
-    readyResolve = () => {
-      if (readySettled) {
-        return;
-      }
-      readySettled = true;
-      resolve();
-    };
-    readyReject = (err) => {
-      if (readySettled) {
-        return;
-      }
-      readySettled = true;
-      reject(err);
-    };
-  });
-  const deviceIdentity = options.deviceIdentity ?? loadOrCreateDeviceIdentity();
+  let ready: Promise<void>;
   let connectNonce: string | null = null;
   let connectSent = false;
   let connectTimer: NodeJS.Timeout | null = null;
+  let reconnectTimer: NodeJS.Timeout | null = null;
+  let closed = false;
+  let terminalError: Error | null = null;
+
+  const resetReady = () => {
+    readySettled = false;
+    ready = new Promise<void>((resolve, reject) => {
+      readyResolve = () => {
+        if (readySettled) {
+          return;
+        }
+        readySettled = true;
+        resolve();
+      };
+      readyReject = (err) => {
+        if (readySettled) {
+          return;
+        }
+        readySettled = true;
+        reject(err);
+      };
+    });
+    ready.catch(() => undefined);
+  };
+
+  const formatGatewayError = (raw: unknown): string => {
+    if (raw === null || raw === undefined) {
+      return "gateway error";
+    }
+    if (typeof raw === "string") {
+      return raw;
+    }
+    try {
+      return JSON.stringify(raw);
+    } catch {
+      return String(raw);
+    }
+  };
 
   const sendConnect = () => {
     if (connectSent) {
@@ -162,6 +182,9 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
       nonce: connectNonce ?? undefined,
       signedAtMs: Date.now(),
     });
+    if (!ws) {
+      return;
+    }
     ws.send(
       JSON.stringify({
         type: "req",
@@ -183,11 +206,41 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
     }, 750);
   };
 
-  ws.on("open", () => {
-    queueConnect();
-  });
+  const rejectAllPending = (err: Error) => {
+    for (const [, handler] of pending) {
+      if (handler.timer) {
+        clearTimeout(handler.timer);
+      }
+      handler.reject(err);
+    }
+    pending.clear();
+  };
 
-  ws.on("message", (data: any) => {
+  const isAuthFailure = (code: number | undefined, text: string) => {
+    if (code !== 1008) {
+      return false;
+    }
+    const reason = text.toLowerCase();
+    return reason.includes("unauthorized") || reason.includes("token mismatch");
+  };
+
+  const scheduleReconnect = () => {
+    if (closed || terminalError || reconnectDelayMs <= 0) {
+      return;
+    }
+    if (reconnectTimer) {
+      return;
+    }
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null;
+      if (closed || terminalError) {
+        return;
+      }
+      openSocket();
+    }, reconnectDelayMs);
+  };
+
+  const handleMessage = (data: any) => {
     let parsed: any;
     try {
       parsed = JSON.parse(data.toString());
@@ -215,22 +268,12 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
       if (parsed.ok) {
         handler.resolve(parsed.payload);
       } else {
-        handler.reject(new Error(parsed.error?.message ?? "gateway error"));
+        handler.reject(new Error(formatGatewayError(parsed.error)));
       }
     }
-  });
-
-  const rejectAllPending = (err: Error) => {
-    for (const [, handler] of pending) {
-      if (handler.timer) {
-        clearTimeout(handler.timer);
-      }
-      handler.reject(err);
-    }
-    pending.clear();
   };
 
-  ws.on("close", (code?: number, reason?: any) => {
+  const handleClose = (code?: number, reason?: any) => {
     const text = typeof reason === "string" ? reason : reason?.toString?.() ?? "";
     const err = new Error(`gateway closed (${code ?? 1000}): ${text}`);
     if (!readySettled) {
@@ -238,21 +281,64 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
     }
     rejectAllPending(err);
     logWarn(err.message);
-  });
-
-  ws.on("error", (err: Error) => {
-    if (!readySettled) {
-      readyReject?.(err);
+    if (connectTimer) {
+      clearTimeout(connectTimer);
+      connectTimer = null;
     }
-    rejectAllPending(err instanceof Error ? err : new Error(String(err)));
+    if (isAuthFailure(code, text)) {
+      terminalError = err;
+      return;
+    }
+    resetReady();
+    scheduleReconnect();
+  };
+
+  const handleError = (err: Error) => {
+    const error = err instanceof Error ? err : new Error(String(err));
+    if (!readySettled) {
+      readyReject?.(error);
+    }
+    rejectAllPending(error);
     logError(`gateway error: ${String(err)}`);
-  });
+    resetReady();
+    scheduleReconnect();
+  };
+
+  const openSocket = () => {
+    resetReady();
+    connectNonce = null;
+    connectSent = false;
+    if (connectTimer) {
+      clearTimeout(connectTimer);
+      connectTimer = null;
+    }
+    ws =
+      options.wsFactory?.(options.url) ??
+      (() => {
+        const WebSocket = require("ws") as any;
+        return new WebSocket(options.url);
+      })();
+    ws.on("open", () => {
+      queueConnect();
+    });
+    ws.on("message", handleMessage);
+    ws.on("close", handleClose);
+    ws.on("error", handleError);
+  };
+
+  openSocket();
 
   function request(
     method: string,
     params?: unknown,
     opts?: { timeoutMs?: number },
   ): Promise<unknown> {
+    if (terminalError) {
+      return Promise.reject(terminalError);
+    }
+    if (closed) {
+      return Promise.reject(new Error("gateway closed"));
+    }
     const id = randomUUID();
     const payload = new Promise<unknown>((resolve, reject) => {
       const timeoutMs = opts?.timeoutMs ?? options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
@@ -266,13 +352,14 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
       }
       pending.set(id, { resolve, reject, timer });
     });
-    ready
+    const currentReady = ready;
+    currentReady
       .then(() => {
         if (!pending.has(id)) {
           return;
         }
         try {
-          ws.send(
+          ws?.send(
             JSON.stringify({
               type: "req",
               id,
@@ -302,7 +389,18 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
 
   return {
     request,
-    close: () => ws.close(),
+    close: () => {
+      closed = true;
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+      if (connectTimer) {
+        clearTimeout(connectTimer);
+        connectTimer = null;
+      }
+      ws?.close();
+    },
   };
 }
 
