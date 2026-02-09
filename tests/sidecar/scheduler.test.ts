@@ -46,3 +46,43 @@ test("scheduler logs error detail on task ack", async () => {
     error: '{"message":"nope","code":"E_TEST"}',
   });
 });
+
+test("scheduler passes task result to ack", async () => {
+  const { createScheduler } = await import("../../src/sidecar/scheduler.js");
+
+  const controlPlane = {
+    heartbeat: vi.fn().mockResolvedValue(undefined),
+    pullTasks: vi.fn().mockResolvedValue([
+      { id: "t2", action: "skills.status", payload: {} },
+    ]),
+    ackTask: vi.fn().mockResolvedValue(undefined),
+  };
+
+  const executor = {
+    run: vi.fn().mockResolvedValue({
+      processed: 1,
+      skipped: 0,
+      failed: 0,
+      errors: {},
+      results: { t2: { skills: [{ skillKey: "weather" }] } },
+    }),
+  };
+
+  const scheduler = createScheduler({
+    controlPlane,
+    executor: executor as any,
+    deviceToken: "token",
+    pollIntervalMs: 1000,
+    concurrency: 1,
+  });
+
+  await scheduler.runOnce();
+
+  expect(controlPlane.ackTask).toHaveBeenCalledWith(
+    "token",
+    "t2",
+    "ok",
+    undefined,
+    { skills: [{ skillKey: "weather" }] },
+  );
+});

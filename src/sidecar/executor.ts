@@ -5,6 +5,7 @@ import type {
   SidecarProvider,
   SkillsInstallParams,
   SkillsUpdateParams,
+  SkillsStatusParams,
   AgentRunParams,
 } from "./providers/types.js";
 
@@ -23,6 +24,7 @@ type ExecutorResult = {
   skipped: number;
   failed: number;
   errors: Record<string, string>;
+  results: Record<string, unknown>;
 };
 
 type ExecutorOptions = {
@@ -41,6 +43,8 @@ export function createExecutor(options: ExecutorOptions) {
         return provider.skillsInstall(task.payload as SkillsInstallParams);
       case "skills.update":
         return provider.skillsUpdate(task.payload as SkillsUpdateParams);
+      case "skills.status":
+        return provider.skillsStatus(task.payload as SkillsStatusParams);
       case "memory.replace":
         return provider.memoryReplace(task.payload as MemoryReplaceParams);
       case "session.reset":
@@ -57,6 +61,7 @@ export function createExecutor(options: ExecutorOptions) {
     let skipped = 0;
     let failed = 0;
     const errors: Record<string, string> = {};
+    const results: Record<string, unknown> = {};
 
     for (const task of tasks) {
       if (state.executed[task.id]) {
@@ -64,16 +69,19 @@ export function createExecutor(options: ExecutorOptions) {
         continue;
       }
       try {
-        await dispatch(task);
+        const result = await dispatch(task);
         state.executed[task.id] = true;
         processed += 1;
+        if (task.action === "skills.status") {
+          results[task.id] = result;
+        }
       } catch (err) {
         errors[task.id] = err instanceof Error ? err.message : String(err);
         failed += 1;
       }
     }
 
-    return { processed, skipped, failed, errors };
+    return { processed, skipped, failed, errors, results };
   }
 
   return {

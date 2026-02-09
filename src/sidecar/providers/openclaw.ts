@@ -27,6 +27,9 @@ export function createOpenClawProvider(options: OpenClawProviderOptions): Sideca
     async skillsUpdate(params: SkillsUpdateParams) {
       await gateway.request("skills.update", params);
     },
+    async skillsStatus() {
+      return gateway.request("skills.status");
+    },
     async memoryReplace(params: MemoryReplaceParams) {
       const fileName = params.fileName ?? "MEMORY.md";
       await gateway.request("agents.files.set", {

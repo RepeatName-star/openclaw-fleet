@@ -61,6 +61,7 @@ export function createControlPlaneClient(options: ControlPlaneClientOptions) {
     taskId: string,
     status: "ok" | "error",
     error?: string,
+    result?: unknown,
   ): Promise<void> {
     const res = await fetcher(`${baseUrl}/v1/tasks/ack`, {
       method: "POST",
@@ -68,7 +69,7 @@ export function createControlPlaneClient(options: ControlPlaneClientOptions) {
         "content-type": "application/json",
         authorization: `Bearer ${deviceToken}`,
       },
-      body: JSON.stringify({ task_id: taskId, status, error }),
+      body: JSON.stringify({ task_id: taskId, status, error, result }),
     });
     if (!res.ok) {
       throw new Error("ack failed");

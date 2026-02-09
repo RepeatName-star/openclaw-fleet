@@ -5,6 +5,7 @@ import type {
   SessionResetParams,
   SidecarProvider,
   SkillsInstallParams,
+  SkillsStatusParams,
   SkillsUpdateParams,
 } from "./types.js";
 
@@ -30,6 +31,18 @@ export function createGenericHttpProvider(options: GenericProviderOptions): Side
     }
   }
 
+  async function postJson(path: string, body: unknown): Promise<unknown> {
+    const res = await fetcher(`${baseUrl}${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body ?? {}),
+    });
+    if (!res.ok) {
+      throw new Error(`generic provider request failed: ${path}`);
+    }
+    return res.json().catch(() => ({}));
+  }
+
   return {
     async configPatch(params: ConfigPatchParams) {
       await post("/config/patch", params);
@@ -39,6 +52,9 @@ export function createGenericHttpProvider(options: GenericProviderOptions): Side
     },
     async skillsUpdate(params: SkillsUpdateParams) {
       await post("/skills", params);
+    },
+    async skillsStatus(params: SkillsStatusParams) {
+      return postJson("/skills/status", params);
     },
     async memoryReplace(params: MemoryReplaceParams) {
       await post("/memory", params);
