@@ -9,6 +9,7 @@ import { registerInstanceRoutes } from "./routes/instances.js";
 import { registerTasksAckRoutes } from "./routes/tasks-ack.js";
 import { registerTasksAdminRoutes } from "./routes/tasks-admin.js";
 import { registerTasksPullRoutes } from "./routes/tasks-pull.js";
+import { registerTasksQueryRoutes } from "./routes/tasks-query.js";
 
 type ServerOptions = {
   config?: AppConfig;
@@ -25,5 +26,6 @@ export async function buildServer(options: ServerOptions = {}) {
   await registerTasksPullRoutes(app, options);
   await registerTasksAckRoutes(app, options);
   await registerTasksAdminRoutes(app, options);
+  await registerTasksQueryRoutes(app, options);
   return app;
 }
