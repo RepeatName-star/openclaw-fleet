@@ -54,6 +54,26 @@ export async function registerInstanceRoutes(app: FastifyInstance, opts: Instanc
     reply.send(res.rows[0]);
   });
 
+  app.get("/v1/instances/:id/skills", async (request, reply) => {
+    if (!opts.pool) {
+      reply.code(500).send({ error: "server not configured" });
+      return;
+    }
+    const { id } = request.params as { id: string };
+    const res = await opts.pool.query(
+      "select skills_snapshot, skills_snapshot_at from instances where id = $1",
+      [id],
+    );
+    if (!res.rowCount) {
+      reply.code(404).send({ error: "not found" });
+      return;
+    }
+    reply.send({
+      skills: res.rows[0].skills_snapshot,
+      updated_at: res.rows[0].skills_snapshot_at,
+    });
+  });
+
   app.patch("/v1/instances/:id", async (request, reply) => {
     if (!opts.pool) {
       reply.code(500).send({ error: "server not configured" });

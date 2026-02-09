@@ -29,3 +29,21 @@ test("PATCH /v1/instances/:id updates control_ui_url", async () => {
   expect(res.statusCode).toBe(200);
   expect(res.json().control_ui_url).toBe("http://localhost:18789");
 });
+
+test("GET /v1/instances/:id/skills returns snapshot", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+  const pool = createTestPool(db);
+  const created = await pool.query(
+    "insert into instances (name, skills_snapshot) values ($1, $2) returning id",
+    ["i-1", { skills: [{ skillKey: "weather" }] }],
+  );
+  const redis = { set: async () => "OK", get: async () => null };
+  const app = await buildServer({ pool, redis });
+  const res = await app.inject({
+    method: "GET",
+    url: `/v1/instances/${created.rows[0].id}/skills`,
+  });
+  expect(res.statusCode).toBe(200);
+  expect(res.json().skills.skills[0].skillKey).toBe("weather");
+});
