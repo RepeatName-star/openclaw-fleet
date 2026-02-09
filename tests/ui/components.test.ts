@@ -1,10 +1,10 @@
 import React from "react";
 import { renderToString } from "react-dom/server";
-import InstancesPage from "../../ui/src/pages/Instances";
-import TasksPage from "../../ui/src/pages/Tasks";
-import TaskDetailPage from "../../ui/src/pages/TaskDetail";
-import SkillsPage from "../../ui/src/pages/Skills";
-import MemoryPage from "../../ui/src/pages/Memory";
+import InstancesPage from "../../ui/src/pages/Instances.js";
+import TasksPage from "../../ui/src/pages/Tasks.js";
+import TaskDetailPage from "../../ui/src/pages/TaskDetail.js";
+import SkillsPage from "../../ui/src/pages/Skills.js";
+import MemoryPage from "../../ui/src/pages/Memory.js";
 
 function render(component: React.ReactElement) {
   return renderToString(component);
