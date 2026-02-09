@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
-import { createGatewayClient, buildConnectParams } from "../../src/sidecar/gateway-client.js";
+import { expect, test, vi } from "vitest";
+import { buildConnectParams, createGatewayClient } from "../../src/sidecar/gateway-client.js";
 import { deriveDeviceIdFromPublicKey } from "../../src/sidecar/device-identity.js";
 
 test("buildConnectParams uses gateway-client/backend defaults", () => {
@@ -121,5 +122,105 @@ test("gateway client rejects pending requests on close", async () => {
   ws.close(1008, "bye");
 
   await expect(pending).rejects.toThrow(/gateway closed/i);
+  client.close();
+});
+
+test("gateway client rejects with raw error payload", async () => {
+  const ws = new FakeWebSocket();
+  const client = createGatewayClient({
+    url: "ws://test",
+    token: "t",
+    wsFactory: () => ws as any,
+  });
+
+  ws.emit("open");
+  emitChallenge(ws);
+  respondToLastRequest(ws, true);
+
+  const pending = client.request("health");
+  await Promise.resolve();
+  const last = ws.sent[ws.sent.length - 1];
+  const frame = JSON.parse(last);
+  ws.emit(
+    "message",
+    Buffer.from(
+      JSON.stringify({
+        type: "res",
+        id: frame.id,
+        ok: false,
+        error: { message: "nope", code: "E_TEST", detail: { hint: "x" } },
+      }),
+    ),
+  );
+
+  await expect(pending).rejects.toThrow(
+    /\{\"message\":\"nope\",\"code\":\"E_TEST\",\"detail\":\{\"hint\":\"x\"\}\}/,
+  );
+  client.close();
+});
+
+test("gateway client reconnects after close", async () => {
+  vi.useFakeTimers();
+  const sockets: FakeWebSocket[] = [];
+  const client = createGatewayClient({
+    url: "ws://test",
+    token: "t",
+    reconnectDelayMs: 10,
+    wsFactory: () => {
+      const ws = new FakeWebSocket();
+      sockets.push(ws);
+      return ws as any;
+    },
+  });
+
+  sockets[0].emit("open");
+  emitChallenge(sockets[0]);
+  respondToLastRequest(sockets[0], true);
+
+  sockets[0].close(1012, "service restart");
+  await vi.advanceTimersByTimeAsync(10);
+
+  expect(sockets.length).toBe(2);
+  sockets[1].emit("open");
+  emitChallenge(sockets[1]);
+  respondToLastRequest(sockets[1], true);
+
+  const pending = client.request("health");
+  await Promise.resolve();
+  const last = sockets[1].sent[sockets[1].sent.length - 1];
+  expect(JSON.parse(last).method).toBe("health");
+  respondToLastRequest(sockets[1], true);
+  await expect(pending).resolves.toBeTruthy();
+
+  vi.useRealTimers();
+  client.close();
+});
+
+test("gateway client stops reconnecting on auth failure", async () => {
+  vi.useFakeTimers();
+  const sockets: FakeWebSocket[] = [];
+  const client = createGatewayClient({
+    url: "ws://test",
+    token: "t",
+    reconnectDelayMs: 10,
+    requestTimeoutMs: 5,
+    wsFactory: () => {
+      const ws = new FakeWebSocket();
+      sockets.push(ws);
+      return ws as any;
+    },
+  });
+
+  sockets[0].emit("open");
+  emitChallenge(sockets[0]);
+  respondToLastRequest(sockets[0], true);
+  sockets[0].close(1008, "unauthorized: gateway token mismatch");
+
+  await vi.advanceTimersByTimeAsync(50);
+  expect(sockets.length).toBe(1);
+
+  await expect(client.request("health")).rejects.toThrow(/unauthorized/i);
+
+  vi.useRealTimers();
   client.close();
 });
