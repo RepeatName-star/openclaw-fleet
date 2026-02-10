@@ -8,21 +8,21 @@ Control plane + sidecar architecture for managing multiple OpenClaw instances wi
 
 ```mermaid
 flowchart TB
-  %% --- 样式定义 ---
+  %% --- Styles ---
   classDef component fill:#ede7f6,stroke:#5e35b1,stroke-width:1px;
   classDef db fill:#e3f2fd,stroke:#1565c0,stroke-width:1px;
   classDef plain fill:none,stroke:none;
   classDef cluster fill:#fff,stroke:#333,stroke-width:1px;
 
   %% ==========================================
-  %% 1. 上层：控制面 (Control Plane)
+  %% 1. Control Plane (Top)
   %% ==========================================
-  subgraph ControlPlane["控制面 (Control Plane)"]
+  subgraph ControlPlane["Control Plane (API + UI)"]
     direction TB
-    UI[Web UI]:::component -->|REST| API[控制面 API]:::component
+    UI[Web UI]:::component -->|REST| API[Control Plane API]:::component
     
-    %% 数据库层：强制放在 API 下方，内部左右排列
-    subgraph DataLayer["持久化存储"]
+    %% Data layer: force below API, left-to-right
+    subgraph DataLayer["Persistence"]
       direction LR
       PG[(Postgres)]:::db
       R[(Redis)]:::db
@@ -33,23 +33,22 @@ flowchart TB
   end
 
   %% ==========================================
-  %% 关键布局修复：隐形“脊柱”
-  %% 这行代码强制 控制面 在 主机池 的正上方
+  %% Layout spine: keep Control Plane above Node Pool
   %% ==========================================
   DataLayer ~~~ NodePool
 
   %% ==========================================
-  %% 2. 下层：纳管主机池
+  %% 2. Node Pool (Bottom)
   %% ==========================================
-  subgraph NodePool["纳管主机池 (边缘网络 / 内网环境 / NAT)"]
-    direction LR %% 强制内部元素横向排列
+  subgraph NodePool["Managed Hosts (Edge / Private / NAT)"]
+    direction LR %% Force horizontal layout
     
-    %% --- 2.1 左侧：节点 A ---
-    subgraph NodeEnvA["节点环境 A (Linux/Windows)"]
+    %% --- 2.1 Node A ---
+    subgraph NodeEnvA["Node A (Linux/Windows)"]
       direction TB
       SCA[Sidecar]:::component
       
-      subgraph AppA["OpenClaw 核心应用"]
+      subgraph AppA["OpenClaw Core App"]
         direction TB
         GWA[OpenClaw Gateway]:::component --> OCA[OpenClaw Core]:::component
       end
@@ -57,15 +56,15 @@ flowchart TB
       SCA -->|Local WS| GWA
     end
 
-    %% --- 2.2 中间：省略号 ---
+    %% --- 2.2 Dots ---
     Dots["..."]:::plain
 
-    %% --- 2.3 右侧：节点 B ---
-    subgraph NodeEnvB["节点环境 B (Linux/Windows)"]
+    %% --- 2.3 Node B ---
+    subgraph NodeEnvB["Node B (Linux/Windows)"]
       direction TB
       SCB[Sidecar]:::component
       
-      subgraph AppB["OpenClaw 核心应用"]
+      subgraph AppB["OpenClaw Core App"]
         direction TB
         GWB[OpenClaw Gateway]:::component --> OCB[OpenClaw Core]:::component
       end
@@ -73,17 +72,16 @@ flowchart TB
       SCB -->|Local WS| GWB
     end
 
-    %% --- 强制横向顺序：A -> 省略号 -> B ---
+    %% --- Force order: A -> Dots -> B ---
     NodeEnvA ~~~ Dots ~~~ NodeEnvB
   end
 
   %% ==========================================
-  %% 3. 跨网逻辑连线 (Outbound)
+  %% 3. Cross-network outbound links
   %% ==========================================
-  %% 这里的连线会自动寻找最短路径，因为有上面的骨架支撑，
-  %% 它们现在会漂亮地汇聚到上方的 API
-  SCA -->|"Outbound 长连接 (注册/保活)"| API
-  SCB -->|"Outbound 长连接 (注册/保活)"| API
+  %% These links converge to the API due to the layout spine above
+  SCA -->|"Outbound long-lived link (enroll/heartbeat)"| API
+  SCB -->|"Outbound long-lived link (enroll/heartbeat)"| API
 ```
 
 ### Components
