@@ -12,14 +12,23 @@ flowchart TB
     API --> R[(Redis)]
   end
 
-  subgraph OpenClawHost["OpenClaw 主机（每实例）"]
-    SC[Sidecar]
-    GW[OpenClaw Gateway]
-    OC[OpenClaw Core]
-    SC -->|Gateway WS| GW --> OC
+  subgraph HostA["OpenClaw 主机 A（每实例）"]
+    SCA[Sidecar]
+    GWA[OpenClaw Gateway]
+    OCA[OpenClaw Core]
+    SCA -->|Gateway WS| GWA --> OCA
   end
 
-  SC -->|轮询任务 / 回执结果| API
+  subgraph HostB["OpenClaw 主机 B（每实例）"]
+    SCB[Sidecar]
+    GWB[OpenClaw Gateway]
+    OCB[OpenClaw Core]
+    SCB -->|Gateway WS| GWB --> OCB
+  end
+
+  SCA -->|轮询任务 / 回执结果| API
+  SCB -->|轮询任务 / 回执结果| API
+  HostB --- Dots["..."]
 ```
 
 ### 组件说明
@@ -41,6 +50,7 @@ flowchart TB
 
 - 注册与设备令牌认证
 - 心跳上报 + 在线状态
+- 仅出站连接控制面（可在 NAT 后运行，无需开放入站端口）
 - 任务下发 + 重试 + attempt 记录
 - 支持的动作：
   - `agent.run`

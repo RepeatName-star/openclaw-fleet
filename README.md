@@ -14,14 +14,23 @@ flowchart TB
     API --> R[(Redis)]
   end
 
-  subgraph OpenClawHost["OpenClaw Host (per instance)"]
-    SC[Sidecar]
-    GW[OpenClaw Gateway]
-    OC[OpenClaw Core]
-    SC -->|Gateway WS| GW --> OC
+  subgraph HostA["OpenClaw Host A (per instance)"]
+    SCA[Sidecar]
+    GWA[OpenClaw Gateway]
+    OCA[OpenClaw Core]
+    SCA -->|Gateway WS| GWA --> OCA
   end
 
-  SC -->|poll tasks / ack results| API
+  subgraph HostB["OpenClaw Host B (per instance)"]
+    SCB[Sidecar]
+    GWB[OpenClaw Gateway]
+    OCB[OpenClaw Core]
+    SCB -->|Gateway WS| GWB --> OCB
+  end
+
+  SCA -->|poll tasks / ack results| API
+  SCB -->|poll tasks / ack results| API
+  HostB --- Dots["..."]
 ```
 
 ### Components
@@ -43,6 +52,7 @@ flowchart TB
 
 - Enrollment + device token auth
 - Heartbeats + online status
+- Outbound-only control plane connectivity (works behind NAT / no inbound ports required on hosts)
 - Task dispatch + retries + attempt history
 - Actions:
   - `agent.run`
