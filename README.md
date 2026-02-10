@@ -2,35 +2,88 @@
 
 [中文说明](README.zh-CN.md)
 
-Control plane + sidecar architecture for managing multiple OpenClaw instances without modifying OpenClaw core.
+Control plane + sidecar architecture for managing multiple OpenClaw instances without modifying OpenClaw core. Works across heterogeneous hosts and networks (public IP or behind NAT) via outbound-only connections.
 
 ## Architecture
 
 ```mermaid
 flowchart TB
-  subgraph ControlPlane["Control Plane (API + UI)"]
-    UI[Web UI] -->|REST| API[Control Plane API]
-    API --> PG[(Postgres)]
-    API --> R[(Redis)]
+  %% --- 样式定义 ---
+  classDef component fill:#ede7f6,stroke:#5e35b1,stroke-width:1px;
+  classDef db fill:#e3f2fd,stroke:#1565c0,stroke-width:1px;
+  classDef plain fill:none,stroke:none;
+  classDef cluster fill:#fff,stroke:#333,stroke-width:1px;
+
+  %% ==========================================
+  %% 1. 上层：控制面 (Control Plane)
+  %% ==========================================
+  subgraph ControlPlane["控制面 (Control Plane)"]
+    direction TB
+    UI[Web UI]:::component -->|REST| API[控制面 API]:::component
+    
+    %% 数据库层：强制放在 API 下方，内部左右排列
+    subgraph DataLayer["持久化存储"]
+      direction LR
+      PG[(Postgres)]:::db
+      R[(Redis)]:::db
+    end
+    
+    API --> PG
+    API --> R
   end
 
-  subgraph HostA["OpenClaw Host A (per instance)"]
-    SCA[Sidecar]
-    GWA[OpenClaw Gateway]
-    OCA[OpenClaw Core]
-    SCA -->|Gateway WS| GWA --> OCA
+  %% ==========================================
+  %% 关键布局修复：隐形“脊柱”
+  %% 这行代码强制 控制面 在 主机池 的正上方
+  %% ==========================================
+  DataLayer ~~~ NodePool
+
+  %% ==========================================
+  %% 2. 下层：纳管主机池
+  %% ==========================================
+  subgraph NodePool["纳管主机池 (边缘网络 / 内网环境 / NAT)"]
+    direction LR %% 强制内部元素横向排列
+    
+    %% --- 2.1 左侧：节点 A ---
+    subgraph NodeEnvA["节点环境 A (Linux/Windows)"]
+      direction TB
+      SCA[Sidecar]:::component
+      
+      subgraph AppA["OpenClaw 核心应用"]
+        direction TB
+        GWA[OpenClaw Gateway]:::component --> OCA[OpenClaw Core]:::component
+      end
+      
+      SCA -->|Local WS| GWA
+    end
+
+    %% --- 2.2 中间：省略号 ---
+    Dots["..."]:::plain
+
+    %% --- 2.3 右侧：节点 B ---
+    subgraph NodeEnvB["节点环境 B (Linux/Windows)"]
+      direction TB
+      SCB[Sidecar]:::component
+      
+      subgraph AppB["OpenClaw 核心应用"]
+        direction TB
+        GWB[OpenClaw Gateway]:::component --> OCB[OpenClaw Core]:::component
+      end
+      
+      SCB -->|Local WS| GWB
+    end
+
+    %% --- 强制横向顺序：A -> 省略号 -> B ---
+    NodeEnvA ~~~ Dots ~~~ NodeEnvB
   end
 
-  subgraph HostB["OpenClaw Host B (per instance)"]
-    SCB[Sidecar]
-    GWB[OpenClaw Gateway]
-    OCB[OpenClaw Core]
-    SCB -->|Gateway WS| GWB --> OCB
-  end
-
-  SCA -->|poll tasks / ack results| API
-  SCB -->|poll tasks / ack results| API
-  HostB --- Dots["..."]
+  %% ==========================================
+  %% 3. 跨网逻辑连线 (Outbound)
+  %% ==========================================
+  %% 这里的连线会自动寻找最短路径，因为有上面的骨架支撑，
+  %% 它们现在会漂亮地汇聚到上方的 API
+  SCA -->|"Outbound 长连接 (注册/保活)"| API
+  SCB -->|"Outbound 长连接 (注册/保活)"| API
 ```
 
 ### Components
