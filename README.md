@@ -7,13 +7,21 @@ Control plane + sidecar architecture for managing multiple OpenClaw instances wi
 ## Architecture
 
 ```mermaid
-graph TD
-  UI[Web UI] -->|REST| CP[Control Plane API]
-  CP --> PG[(Postgres)]
-  CP --> R[(Redis)]
-  SC[Sidecar] -->|poll tasks| CP
-  SC -->|ack results| CP
-  SC -->|Gateway WS| GW[OpenClaw Gateway]
+flowchart TB
+  subgraph ControlPlane["Control Plane (API + UI)"]
+    UI[Web UI] -->|REST| API[Control Plane API]
+    API --> PG[(Postgres)]
+    API --> R[(Redis)]
+  end
+
+  subgraph OpenClawHost["OpenClaw Host (per instance)"]
+    SC[Sidecar]
+    GW[OpenClaw Gateway]
+    OC[OpenClaw Core]
+    SC -->|Gateway WS| GW --> OC
+  end
+
+  SC -->|poll tasks / ack results| API
 ```
 
 ### Components
@@ -21,6 +29,7 @@ graph TD
 - **Control Plane (API + UI)**: Fastify service that stores state, dispatches tasks, and serves the web UI.
 - **Sidecar (per instance)**: Polls tasks and executes them by calling the local OpenClaw Gateway API.
 - **OpenClaw Gateway (local)**: Sidecar connects to `ws://127.0.0.1:18789` and uses standard gateway methods.
+- **OpenClaw Core**: Runs on the instance host and exposes the Gateway interface.
 - **Storage**: Postgres for durable state, Redis for heartbeats and leases.
 
 ### Task lifecycle
@@ -50,15 +59,53 @@ graph TD
   - Memory/Persona editor
   - Per-instance OpenClaw console link (`control_ui_url`)
 
-## Quick Start
+## Quick Start (Single Host)
+
+This quick start brings up **Postgres + Redis + Control Plane + UI + Sidecar** on one host.
+OpenClaw itself runs alongside the sidecar (same host or same network namespace).
 
 ```bash
+# 1) Start Postgres + Redis
+docker compose up -d
+
+# 2) Install deps
 pnpm install
+
+# 3) Configure environment
 cp .env.example .env
+# edit .env (see below)
+
+# 4) Run migrations
+cat migrations/001_init.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
+cat migrations/002_instance_task_metadata.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
+
+# 5) Build + start control plane (serves UI if dist/ui exists)
 pnpm build
 pnpm ui:build
 node --env-file=.env dist/index.js
+
+# 6) Configure and start sidecar
+mkdir -p ~/.openclaw-fleet
+cat > ~/.openclaw-fleet/sidecar.json <<'JSON'
+{
+  "controlPlaneUrl": "http://127.0.0.1:3000",
+  "enrollmentToken": "change-me",
+  "provider": "openclaw",
+  "pollIntervalMs": 5000,
+  "concurrency": 2,
+  "statePath": "/home/admin/.openclaw-fleet/sidecar-state.json",
+  "openclawGatewayUrl": "ws://127.0.0.1:18789",
+  "openclawGatewayToken": "replace-if-required"
+}
+JSON
+
+pnpm sidecar:start
 ```
+
+UI is served at `http://127.0.0.1:3000/` once `pnpm ui:build` has run.
+Notes:
+- `openclawGatewayToken` is optional; omit it if your gateway has no auth.
+- `openclawGatewayUrl` should point to the local gateway for that instance.
 
 UI development:
 
@@ -71,7 +118,16 @@ pnpm ui:dev
 - `PORT`: server port (default 3000)
 - `DATABASE_URL`: Postgres connection string
 - `REDIS_URL`: Redis connection string
-- `ENROLLMENT_SECRET`: shared enrollment secret
+- `ENROLLMENT_SECRET`: shared enrollment secret (must match sidecar `enrollmentToken`)
+
+Example `.env`:
+
+```
+PORT=3000
+DATABASE_URL=postgres://openclaw:openclaw@localhost:5432/openclaw_fleet
+REDIS_URL=redis://localhost:6379
+ENROLLMENT_SECRET=change-me
+```
 
 ## Migrations
 

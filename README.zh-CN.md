@@ -5,13 +5,21 @@
 ## 架构
 
 ```mermaid
-graph TD
-  UI[Web UI] -->|REST| CP[控制面 API]
-  CP --> PG[(Postgres)]
-  CP --> R[(Redis)]
-  SC[Sidecar] -->|轮询任务| CP
-  SC -->|回执结果| CP
-  SC -->|Gateway WS| GW[OpenClaw Gateway]
+flowchart TB
+  subgraph ControlPlane["控制面（API + UI）"]
+    UI[Web UI] -->|REST| API[控制面 API]
+    API --> PG[(Postgres)]
+    API --> R[(Redis)]
+  end
+
+  subgraph OpenClawHost["OpenClaw 主机（每实例）"]
+    SC[Sidecar]
+    GW[OpenClaw Gateway]
+    OC[OpenClaw Core]
+    SC -->|Gateway WS| GW --> OC
+  end
+
+  SC -->|轮询任务 / 回执结果| API
 ```
 
 ### 组件说明
@@ -19,6 +27,7 @@ graph TD
 - **控制面（API + UI）**：Fastify 服务，负责状态存储、任务下发与 Web UI。
 - **Sidecar（每实例）**：拉取任务并调用本机 OpenClaw Gateway 执行。
 - **OpenClaw Gateway（本地）**：Sidecar 连接 `ws://127.0.0.1:18789`。
+- **OpenClaw Core**：运行在实例主机上，并提供 Gateway 接口。
 - **存储**：Postgres（持久化状态）+ Redis（心跳/租约）。
 
 ### 任务生命周期
@@ -48,15 +57,52 @@ graph TD
   - Memory/Persona 编辑器
   - 实例 OpenClaw 控制台链接（`control_ui_url`）
 
-## 快速开始
+## 快速开始（单机）
+
+该流程在单机上启动 Postgres + Redis + 控制面 + UI + Sidecar。
+OpenClaw 本体与 Sidecar 同机或同网络部署。
 
 ```bash
+# 1) 启动 Postgres + Redis
+docker compose up -d
+
+# 2) 安装依赖
 pnpm install
+
+# 3) 配置环境变量
 cp .env.example .env
+
+# 4) 运行迁移
+cat migrations/001_init.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
+cat migrations/002_instance_task_metadata.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
+
+# 5) 构建并启动控制面（dist/ui 存在时可直接提供 UI）
 pnpm build
 pnpm ui:build
 node --env-file=.env dist/index.js
+
+# 6) 配置并启动 Sidecar
+mkdir -p ~/.openclaw-fleet
+cat > ~/.openclaw-fleet/sidecar.json <<'JSON'
+{
+  "controlPlaneUrl": "http://127.0.0.1:3000",
+  "enrollmentToken": "change-me",
+  "provider": "openclaw",
+  "pollIntervalMs": 5000,
+  "concurrency": 2,
+  "statePath": "/home/admin/.openclaw-fleet/sidecar-state.json",
+  "openclawGatewayUrl": "ws://127.0.0.1:18789",
+  "openclawGatewayToken": "replace-if-required"
+}
+JSON
+
+pnpm sidecar:start
 ```
+
+执行过 `pnpm ui:build` 后，UI 地址为 `http://127.0.0.1:3000/`。
+说明：
+- `openclawGatewayToken` 可选，没有鉴权可省略。
+- `openclawGatewayUrl` 指向该实例所在主机的本地 Gateway。
 
 UI 开发：
 
@@ -70,6 +116,15 @@ pnpm ui:dev
 - `DATABASE_URL`: Postgres 连接串
 - `REDIS_URL`: Redis 连接串
 - `ENROLLMENT_SECRET`: 注册用共享密钥
+
+示例 `.env`：
+
+```
+PORT=3000
+DATABASE_URL=postgres://openclaw:openclaw@localhost:5432/openclaw_fleet
+REDIS_URL=redis://localhost:6379
+ENROLLMENT_SECRET=change-me
+```
 
 ## 迁移
 
