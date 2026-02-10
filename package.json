@@ -1,5 +1,6 @@
 {
   "name": "openclaw-fleet",
+  "description": "Control plane + sidecar system to manage multiple OpenClaw instances (API + UI, tasks, skills, memory).",
   "private": true,
   "type": "module",
   "scripts": {
