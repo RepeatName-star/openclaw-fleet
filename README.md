@@ -220,6 +220,8 @@ See `docs/cloud-deploy.md` for a single-host cloud deployment and test flow.
 
 ## Roadmap
 
+See `docs/roadmap.md` for the full roadmap and milestones.
+
 - Group/label based task dispatch
 - Group and label management UI
 - Audit/event stream + history filters
