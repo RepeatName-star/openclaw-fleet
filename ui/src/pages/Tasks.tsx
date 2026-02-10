@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createApiClient } from "../api/client";
 import type { InstanceSummary, TaskItem } from "../types";
 import Filters from "../components/Filters";
 import TaskModal from "../components/TaskModal";
+import { usePolling } from "../hooks/usePolling.js";
 
 export default function TasksPage() {
   const api = useMemo(() => createApiClient(), []);
@@ -13,47 +14,38 @@ export default function TasksPage() {
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    async function load() {
-      try {
-        const filters: Record<string, string> = {};
-        if (statusFilter) {
-          filters.status = statusFilter;
-        }
-        const data = await api.listTasks(filters);
-        if (!active) return;
-        setTasks(data);
-      } catch (err) {
-        if (!active) return;
-        setError(err instanceof Error ? err.message : String(err));
+  const loadTasks = useCallback(async () => {
+    try {
+      const filters: Record<string, string> = {};
+      if (statusFilter) {
+        filters.status = statusFilter;
       }
+      const data = await api.listTasks(filters);
+      setTasks(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     }
-    load();
-    const timer = setInterval(load, 5000);
-    return () => {
-      active = false;
-      clearInterval(timer);
-    };
   }, [api, statusFilter]);
 
-  useEffect(() => {
-    let active = true;
-    async function loadInstances() {
-      try {
-        const data = await api.listInstances();
-        if (!active) return;
-        setInstances(data);
-      } catch (err) {
-        if (!active) return;
-        setError(err instanceof Error ? err.message : String(err));
-      }
+  const loadInstances = useCallback(async () => {
+    try {
+      const data = await api.listInstances();
+      setInstances(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     }
-    loadInstances();
-    return () => {
-      active = false;
-    };
   }, [api]);
+
+  useEffect(() => {
+    if (modalOpen) {
+      return;
+    }
+    loadTasks();
+    loadInstances();
+  }, [loadInstances, loadTasks, modalOpen]);
+
+  usePolling(loadTasks, 5000, !modalOpen);
+  usePolling(loadInstances, 5000, !modalOpen);
 
   const filtered = tasks.filter((task) => {
     const value = `${task.id} ${task.action} ${task.status}`.toLowerCase();

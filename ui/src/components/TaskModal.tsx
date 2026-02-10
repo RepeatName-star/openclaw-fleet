@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createApiClient } from "../api/client";
 import type { InstanceSummary } from "../types";
 
@@ -50,11 +50,17 @@ export default function TaskModal({
   const [installTimeout, setInstallTimeout] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const prevOpen = useRef(false);
 
   useEffect(() => {
     if (!open) {
+      prevOpen.current = false;
       return;
     }
+    if (prevOpen.current) {
+      return;
+    }
+    prevOpen.current = true;
     setError(null);
     setAction((initialAction as ActionType) ?? "agent.run");
     setTargetId(defaultTargetId ?? instances[0]?.id ?? "");

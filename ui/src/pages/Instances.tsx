@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createApiClient } from "../api/client";
 import type { InstanceSummary } from "../types";
 import Filters from "../components/Filters";
 import TaskModal from "../components/TaskModal";
+import { usePolling } from "../hooks/usePolling.js";
 
 export default function InstancesPage() {
   const api = useMemo(() => createApiClient(), []);
@@ -13,25 +14,23 @@ export default function InstancesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [targetId, setTargetId] = useState<string | undefined>(undefined);
 
-  useEffect(() => {
-    let active = true;
-    async function load() {
-      try {
-        const data = await api.listInstances();
-        if (!active) return;
-        setInstances(data);
-      } catch (err) {
-        if (!active) return;
-        setError(err instanceof Error ? err.message : String(err));
-      }
+  const loadInstances = useCallback(async () => {
+    try {
+      const data = await api.listInstances();
+      setInstances(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     }
-    load();
-    const timer = setInterval(load, 5000);
-    return () => {
-      active = false;
-      clearInterval(timer);
-    };
   }, [api]);
+
+  useEffect(() => {
+    if (modalOpen) {
+      return;
+    }
+    loadInstances();
+  }, [loadInstances, modalOpen]);
+
+  usePolling(loadInstances, 5000, !modalOpen);
 
   const filtered = instances.filter((instance) => {
     const value = `${instance.name} ${instance.id}`.toLowerCase();
