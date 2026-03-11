@@ -33,6 +33,8 @@ This plan implements the v0.1 contract defined in:
 
 **Goal:** add new tables while keeping current MVP task pipeline operational.
 
+Detailed plan: `docs/plans/2026-03-11-v0.1-m0-schema.md`.
+
 Deliverables:
 - Postgres migrations + pg-mem tests for:
   - Business labels and system labels storage (per instance)
@@ -50,6 +52,8 @@ Notes:
 
 **Goal:** label-driven ownership and dynamic scoping.
 
+Detailed plan: `docs/plans/2026-03-11-v0.1-m1-labels-selectors.md`.
+
 Deliverables:
 - Instance label CRUD:
   - Business labels writeable.
@@ -61,6 +65,8 @@ Deliverables:
 ### Milestone 2: Campaign API + Reconciler (Fan-out)
 
 **Goal:** create a `Campaign`, continuously reconcile membership, and schedule per-instance executions.
+
+Detailed plan: `docs/plans/2026-03-11-v0.1-m2-campaigns-reconciler.md`.
 
 Deliverables:
 - Campaign CRUD with:
@@ -79,6 +85,8 @@ Execution queue strategy (v0.1):
 ### Milestone 3: Gate/Facts/Probe v0.1 (4 facts)
 
 **Goal:** make scheduling correctness deterministic and explainable.
+
+Detailed plan: `docs/plans/2026-03-11-v0.1-m3-gate-facts-probe.md`.
 
 Deliverables:
 - Facts:
@@ -99,6 +107,8 @@ Deliverables:
 
 **Goal:** execution feedback and auditable history without leaking secrets into exports.
 
+Detailed plan: `docs/plans/2026-03-11-v0.1-m4-events-artifacts.md`.
+
 Deliverables:
 - Event emitters for minimum v0.1 set:
   - `target.added/removed/blocked/unblocked`
@@ -114,6 +124,8 @@ Deliverables:
 ### Milestone 5: Remote Skill Bundle Distribution (tar.gz)
 
 **Goal:** distribute skill folders without relying on gateway internals.
+
+Detailed plan: `docs/plans/2026-03-11-v0.1-m5-skill-bundles.md`.
 
 Deliverables:
 - Control plane:
@@ -133,6 +145,8 @@ Deliverables:
 ### Milestone 6: CLI (UI/Control Separation)
 
 **Goal:** provide a stable control surface without coupling to UI.
+
+Detailed plan: `docs/plans/2026-03-11-v0.1-m6-cli.md`.
 
 Deliverables:
 - CLI commands for:
@@ -159,4 +173,3 @@ Deliverables:
 - Platform compatibility precheck (`os/arch` + metadata)
 - RBAC / multi-tenant
 - Instance provisioning / full OpenClaw lifecycle CRUD from control plane
-
