@@ -221,6 +221,9 @@ See `docs/cloud-deploy.md` for a single-host cloud deployment and test flow.
 ## Roadmap
 
 See `docs/roadmap.md` for the full roadmap and milestones.
+See `docs/bulk-management.md` for the locked-down semantics of Selector/Campaign/Policy.
+See `docs/v0.1-scope.md` for the v0.1 feature checklist + boundaries.
+See `docs/plans/2026-03-11-bulk-management-v0.1.md` for the v0.1 implementation plan.
 
 - Group/label based task dispatch
 - Group and label management UI

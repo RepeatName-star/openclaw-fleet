@@ -220,6 +220,9 @@ UI 相关只读接口：
 ## Roadmap
 
 完整路线图与里程碑见 `docs/roadmap.md`。
+批量管理核心语义（Selector/Campaign/Policy）见 `docs/bulk-management.md`。
+v0.1 功能清单与边界见 `docs/v0.1-scope.md`。
+v0.1 实现计划见 `docs/plans/2026-03-11-bulk-management-v0.1.md`。
 
 - 分组/标签下发
 - 分组与标签管理 UI
