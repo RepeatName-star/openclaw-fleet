@@ -21,7 +21,13 @@ test("reconciler schedules one instance-targeted task per matching instance", as
     ["c1", "biz.openclaw.io/team=a", "skills.status", {}],
   );
 
-  await reconcileOpenCampaignsOnce(pool);
+  const now = new Date();
+  await pool.query(
+    "update instances set gateway_reachable = true, gateway_reachable_at = $2, openclaw_version = $3, openclaw_version_at = $2, skills_snapshot_at = $2 where id = $1",
+    [i1.rows[0].id, now, "2026.2.26"],
+  );
+
+  await reconcileOpenCampaignsOnce(pool, { getOnline: async () => true } as any);
 
   const tasks = await pool.query(
     "select target_type, target_id, action from tasks order by created_at asc",

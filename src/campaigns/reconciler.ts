@@ -1,15 +1,27 @@
 import type { Pool } from "pg";
+import { evaluateGate } from "../gate/evaluate.js";
 import { matchLabelSelector, parseLabelSelector } from "../labels/label-selector.js";
+import { ensureProbeTaskScheduled } from "../probe/scheduler.js";
 
 type InstanceWithLabels = {
   id: string;
   name: string;
   labels: Record<string, string>;
+  gateway_reachable: boolean | null;
+  gateway_reachable_at: Date | null;
+  openclaw_version: string | null;
+  openclaw_version_at: Date | null;
+  skills_snapshot_at: Date | null;
+  skills_snapshot_invalidated_at: Date | null;
 };
 
-export async function reconcileOpenCampaignsOnce(pool: Pool): Promise<void> {
+type ReconcilerDeps = {
+  getOnline?: (instanceId: string) => Promise<boolean>;
+};
+
+export async function reconcileOpenCampaignsOnce(pool: Pool, deps: ReconcilerDeps = {}): Promise<void> {
   const campaignsRes = await pool.query(
-    "select id, selector, action, payload, generation, expires_at from campaigns where status = 'open' order by created_at asc",
+    "select id, selector, action, payload, gate, generation, expires_at from campaigns where status = 'open' order by created_at asc",
   );
   const nowMs = Date.now();
   const campaigns = campaignsRes.rows.filter((row) => {
@@ -25,7 +37,11 @@ export async function reconcileOpenCampaignsOnce(pool: Pool): Promise<void> {
     return;
   }
 
-  const instancesRes = await pool.query("select id, name from instances order by created_at asc");
+  const getOnline = deps.getOnline ?? (async () => true);
+
+  const instancesRes = await pool.query(
+    "select id, name, gateway_reachable, gateway_reachable_at, openclaw_version, openclaw_version_at, skills_snapshot_at, skills_snapshot_invalidated_at from instances order by created_at asc",
+  );
   const labelsRes = await pool.query(
     "select instance_id, key, value from instance_labels order by key asc",
   );
@@ -44,14 +60,29 @@ export async function reconcileOpenCampaignsOnce(pool: Pool): Promise<void> {
     id: String(row.id),
     name: String(row.name),
     labels: labelsByInstanceId.get(String(row.id)) ?? {},
+    gateway_reachable: row.gateway_reachable === null ? null : Boolean(row.gateway_reachable),
+    gateway_reachable_at: (row.gateway_reachable_at ?? null) as Date | null,
+    openclaw_version: (row.openclaw_version ?? null) as string | null,
+    openclaw_version_at: (row.openclaw_version_at ?? null) as Date | null,
+    skills_snapshot_at: (row.skills_snapshot_at ?? null) as Date | null,
+    skills_snapshot_invalidated_at: (row.skills_snapshot_invalidated_at ?? null) as Date | null,
   }));
+  const instancesById = new Map(instances.map((inst) => [inst.id, inst]));
+  const onlineById = new Map<string, boolean>();
+  for (const inst of instances) {
+    onlineById.set(inst.id, await getOnline(inst.id));
+  }
 
   for (const campaign of campaigns) {
     const campaignId = String(campaign.id);
     const selectorStr = String(campaign.selector ?? "");
     const action = String(campaign.action);
     const payload = (campaign.payload ?? {}) as Record<string, unknown>;
+    const gate = (campaign.gate ?? {}) as Record<string, unknown>;
     const generation = Number(campaign.generation);
+    const now = new Date();
+    const minVersionRaw = (gate as any)?.minVersion;
+    const minVersion = typeof minVersionRaw === "string" && minVersionRaw.length > 0 ? minVersionRaw : "0000.0.0";
 
     const parsed = parseLabelSelector(selectorStr);
     if (parsed.error) {
@@ -85,7 +116,53 @@ export async function reconcileOpenCampaignsOnce(pool: Pool): Promise<void> {
       }
     }
 
-    // Gate is stubbed as "always pass" in Milestone 2: schedule tasks for all pending.
+    // Gate: check and block (no repair). Schedule probes for stale/missing facts.
+    const candidates = await pool.query(
+      "select instance_id, state from campaign_instances where campaign_id = $1 and generation = $2 and state in ('pending','blocked')",
+      [campaignId, generation],
+    );
+    for (const row of candidates.rows) {
+      const instanceId = String(row.instance_id);
+      const state = String(row.state);
+      const inst = instancesById.get(instanceId);
+      if (!inst) {
+        continue;
+      }
+      const online = onlineById.get(instanceId) ?? false;
+
+      const evaluated = evaluateGate(
+        {
+          online,
+          gateway_reachable: inst.gateway_reachable,
+          gateway_reachable_at: inst.gateway_reachable_at,
+          openclaw_version: inst.openclaw_version,
+          openclaw_version_at: inst.openclaw_version_at,
+          skills_snapshot_at: inst.skills_snapshot_at,
+          skills_snapshot_invalidated_at: inst.skills_snapshot_invalidated_at,
+        },
+        { minVersion },
+        now,
+      );
+
+      if (!evaluated.ok) {
+        await pool.query(
+          "update campaign_instances set state = 'blocked', blocked_reason = $4, updated_at = now(), last_transition_at = now() where campaign_id = $1 and generation = $2 and instance_id = $3",
+          [campaignId, generation, instanceId, evaluated.blocked_reason],
+        );
+        for (const kind of evaluated.needs_probes) {
+          await ensureProbeTaskScheduled(pool, instanceId, kind, now);
+        }
+        continue;
+      }
+
+      if (state === "blocked") {
+        await pool.query(
+          "update campaign_instances set state = 'pending', blocked_reason = null, updated_at = now(), last_transition_at = now() where campaign_id = $1 and generation = $2 and instance_id = $3",
+          [campaignId, generation, instanceId],
+        );
+      }
+    }
+
     const pending = await pool.query(
       "select instance_id from campaign_instances where campaign_id = $1 and generation = $2 and state = 'pending' and task_id is null order by created_at asc",
       [campaignId, generation],

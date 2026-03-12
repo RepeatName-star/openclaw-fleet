@@ -19,5 +19,13 @@ if (typeof address === "object" && address) {
 const intervalRaw = Number(process.env.RECONCILE_INTERVAL_MS ?? "2000");
 const intervalMs = Number.isFinite(intervalRaw) && intervalRaw > 0 ? intervalRaw : 2000;
 setInterval(() => {
-  void reconcileOpenCampaignsOnce(pool).catch(() => undefined);
+  void reconcileOpenCampaignsOnce(pool, {
+    getOnline: async (instanceId) => {
+      try {
+        return Boolean(await redis.get(`hb:${instanceId}`));
+      } catch {
+        return false;
+      }
+    },
+  }).catch(() => undefined);
 }, intervalMs);
