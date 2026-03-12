@@ -4,10 +4,16 @@ import { newDb } from "pg-mem";
 
 export function initTestDb() {
   const db = newDb({ autoCreateForeignKeyIndices: true });
+  let uuidSeq = 0;
   db.public.registerFunction({
     name: "gen_random_uuid",
     returns: "uuid",
-    implementation: () => "00000000-0000-0000-0000-000000000000",
+    impure: true,
+    implementation: () => {
+      uuidSeq += 1;
+      const suffix = uuidSeq.toString(16).padStart(12, "0");
+      return `00000000-0000-0000-0000-${suffix}`;
+    },
   });
   return db;
 }
