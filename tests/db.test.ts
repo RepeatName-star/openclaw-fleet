@@ -52,3 +52,9 @@ test("bulk management migrations add v0.1 tables and columns", async () => {
   expect(groupNames).toContain("description");
   expect(groupNames).toContain("updated_at");
 });
+
+test("probe state migrations add instance_probe_states", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+  expect(() => db.public.query("select 1 from instance_probe_states")).not.toThrow();
+});
