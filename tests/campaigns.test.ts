@@ -65,3 +65,30 @@ test("POST /v1/campaigns/:id/close closes a campaign", async () => {
   expect(row.rows[0].closed_at).toBeTruthy();
 });
 
+test("PATCH /v1/campaigns/:id increments generation only when action/payload change", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+  const pool = createTestPool(db);
+  const created = await pool.query(
+    "insert into campaigns (name, selector, action, payload) values ($1,$2,$3,$4) returning id, generation",
+    ["c1", "biz.openclaw.io/team=a", "skills.status", {}],
+  );
+  const id = created.rows[0].id as string;
+  const app = await buildServer({ pool, redis });
+
+  const patch1 = await app.inject({
+    method: "PATCH",
+    url: `/v1/campaigns/${id}`,
+    payload: { selector: "biz.openclaw.io/team=b" },
+  });
+  expect(patch1.statusCode).toBe(200);
+  expect(patch1.json().generation).toBe(1);
+
+  const patch2 = await app.inject({
+    method: "PATCH",
+    url: `/v1/campaigns/${id}`,
+    payload: { action: "skills.update", payload: { skillKey: "x", enabled: true } },
+  });
+  expect(patch2.statusCode).toBe(200);
+  expect(patch2.json().generation).toBe(2);
+});

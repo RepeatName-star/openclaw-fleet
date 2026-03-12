@@ -12,6 +12,16 @@ const CreateSchema = z.object({
   expires_at: z.string().datetime().optional(),
 });
 
+const PatchSchema = z.object({
+  name: z.string().min(1).optional(),
+  selector: z.string().min(1).optional(),
+  action: z.string().min(1).optional(),
+  payload: z.record(z.unknown()).optional(),
+  gate: z.record(z.unknown()).optional(),
+  rollout: z.record(z.unknown()).optional(),
+  expires_at: z.string().datetime().optional(),
+});
+
 export async function registerCampaignRoutes(app: FastifyInstance, opts: { pool?: Pool }) {
   app.get("/v1/campaigns", async (_req, reply) => {
     if (!opts.pool) {
@@ -63,6 +73,57 @@ export async function registerCampaignRoutes(app: FastifyInstance, opts: { pool?
     reply.send(res.rows[0]);
   });
 
+  app.patch("/v1/campaigns/:id", async (request, reply) => {
+    if (!opts.pool) {
+      reply.code(500).send({ error: "server not configured" });
+      return;
+    }
+    const parsed = PatchSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      reply.code(400).send({ error: "invalid payload" });
+      return;
+    }
+
+    const { id } = request.params as { id: string };
+
+    const current = await opts.pool.query(
+      "select id, action, payload, generation from campaigns where id = $1",
+      [id],
+    );
+    if (!current.rowCount) {
+      reply.code(404).send({ error: "not found" });
+      return;
+    }
+
+    const oldAction = current.rows[0].action as string;
+    const oldPayload = current.rows[0].payload as Record<string, unknown>;
+    const oldGeneration = current.rows[0].generation as number;
+
+    const nextAction = parsed.data.action ?? oldAction;
+    const nextPayload = parsed.data.payload ?? oldPayload;
+
+    let nextGeneration = oldGeneration;
+    if (nextAction !== oldAction || JSON.stringify(nextPayload) !== JSON.stringify(oldPayload)) {
+      nextGeneration = oldGeneration + 1;
+    }
+
+    const res = await opts.pool.query(
+      "update campaigns set name = coalesce($2, name), selector = coalesce($3, selector), action = coalesce($4, action), payload = coalesce($5, payload), gate = coalesce($6, gate), rollout = coalesce($7, rollout), expires_at = coalesce($8, expires_at), generation = $9, updated_at = now() where id = $1 returning *",
+      [
+        id,
+        parsed.data.name ?? null,
+        parsed.data.selector ?? null,
+        parsed.data.action ?? null,
+        parsed.data.payload ?? null,
+        parsed.data.gate ?? null,
+        parsed.data.rollout ?? null,
+        parsed.data.expires_at ?? null,
+        nextGeneration,
+      ],
+    );
+    reply.send(res.rows[0]);
+  });
+
   app.post("/v1/campaigns/:id/close", async (request, reply) => {
     if (!opts.pool) {
       reply.code(500).send({ error: "server not configured" });
@@ -80,4 +141,3 @@ export async function registerCampaignRoutes(app: FastifyInstance, opts: { pool?
     reply.send(res.rows[0]);
   });
 }
-
