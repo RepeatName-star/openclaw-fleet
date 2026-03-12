@@ -5,6 +5,7 @@ import fastifyStatic from "@fastify/static";
 import type { Pool } from "pg";
 import type { AppConfig } from "./config.js";
 import type { RedisLike } from "./redis.js";
+import { registerCampaignRoutes } from "./routes/campaigns.js";
 import { registerEnrollRoutes } from "./routes/enroll.js";
 import { registerGroupsRoutes } from "./routes/groups.js";
 import { registerHealthRoutes } from "./routes/health.js";
@@ -30,6 +31,7 @@ export async function buildServer(options: ServerOptions = {}) {
   await registerInstanceRoutes(app, options);
   await registerLabelsRoutes(app, options);
   await registerGroupsRoutes(app, options);
+  await registerCampaignRoutes(app, options);
   await registerTasksPullRoutes(app, options);
   await registerTasksAckRoutes(app, options);
   await registerTasksAdminRoutes(app, options);
