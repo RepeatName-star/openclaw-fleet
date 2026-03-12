@@ -21,7 +21,7 @@ export async function registerHeartbeatRoutes(app: FastifyInstance, opts: Heartb
         return;
       }
       const instanceId = request.device.instanceId;
-      await opts.redis.set(`hb:${instanceId}`, "1", "EX", 60);
+      await opts.redis.set(`hb:${instanceId}`, "1", "EX", 90);
       await opts.pool.query("update instances set updated_at = now() where id = $1", [
         instanceId,
       ]);

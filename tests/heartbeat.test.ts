@@ -14,8 +14,12 @@ test("POST /v1/heartbeat updates last_seen", async () => {
   const instanceId = created.rows[0].id as string;
   const token = await issueDeviceToken(pool, { instanceId, scopes: ["operator.admin"] });
 
+  const calls: any[] = [];
   const redis = {
-    set: async () => "OK",
+    set: async (...args: any[]) => {
+      calls.push(args);
+      return "OK";
+    },
   };
 
   const app = await buildServer({ pool, redis });
@@ -25,4 +29,5 @@ test("POST /v1/heartbeat updates last_seen", async () => {
     headers: { authorization: `Bearer ${token}` },
   });
   expect(res.statusCode).toBe(200);
+  expect(calls[0]).toEqual([`hb:${instanceId}`, "1", "EX", 90]);
 });
