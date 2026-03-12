@@ -6,6 +6,7 @@ import type { Pool } from "pg";
 import type { AppConfig } from "./config.js";
 import type { RedisLike } from "./redis.js";
 import { registerEnrollRoutes } from "./routes/enroll.js";
+import { registerGroupsRoutes } from "./routes/groups.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerHeartbeatRoutes } from "./routes/heartbeat.js";
 import { registerInstanceRoutes } from "./routes/instances.js";
@@ -28,6 +29,7 @@ export async function buildServer(options: ServerOptions = {}) {
   await registerHeartbeatRoutes(app, options);
   await registerInstanceRoutes(app, options);
   await registerLabelsRoutes(app, options);
+  await registerGroupsRoutes(app, options);
   await registerTasksPullRoutes(app, options);
   await registerTasksAckRoutes(app, options);
   await registerTasksAdminRoutes(app, options);
