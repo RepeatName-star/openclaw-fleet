@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import { requireDeviceToken } from "../auth.js";
+import { computeNextAllowedAtMs } from "../probe/backoff.js";
 
 const AckSchema = z.object({
   task_id: z.string().min(1),
@@ -15,6 +16,35 @@ type TasksAckOptions = {
 };
 
 const MAX_ATTEMPTS = 5;
+const PROBE_BACKOFF_BASE_MS = 1000;
+const PROBE_BACKOFF_CAP_MS = 5 * 60_000;
+
+async function resetProbeState(pool: Pool, instanceId: string, probeKind: string) {
+  await pool.query(
+    "insert into instance_probe_states (instance_id, probe_kind, consecutive_failures, next_allowed_at, updated_at) values ($1,$2,0,null,now()) on conflict (instance_id, probe_kind) do update set consecutive_failures = 0, next_allowed_at = null, updated_at = now()",
+    [instanceId, probeKind],
+  );
+}
+
+async function bumpProbeFailure(pool: Pool, instanceId: string, probeKind: string, now = new Date()) {
+  const current = await pool.query(
+    "select consecutive_failures from instance_probe_states where instance_id = $1 and probe_kind = $2",
+    [instanceId, probeKind],
+  );
+  const failures = current.rowCount ? Number(current.rows[0].consecutive_failures ?? 0) : 0;
+  const nextAllowedAtMs = computeNextAllowedAtMs({
+    nowMs: now.getTime(),
+    consecutiveFailures: failures,
+    baseMs: PROBE_BACKOFF_BASE_MS,
+    capMs: PROBE_BACKOFF_CAP_MS,
+  });
+  const nextFailures = failures + 1;
+  const nextAllowedAt = new Date(nextAllowedAtMs);
+  await pool.query(
+    "insert into instance_probe_states (instance_id, probe_kind, consecutive_failures, next_allowed_at, updated_at) values ($1,$2,$3,$4,now()) on conflict (instance_id, probe_kind) do update set consecutive_failures = excluded.consecutive_failures, next_allowed_at = excluded.next_allowed_at, updated_at = now()",
+    [instanceId, probeKind, nextFailures, nextAllowedAt],
+  );
+}
 
 export async function registerTasksAckRoutes(app: FastifyInstance, opts: TasksAckOptions) {
   app.post("/v1/tasks/ack", async (request, reply) => {
@@ -64,6 +94,11 @@ export async function registerTasksAckRoutes(app: FastifyInstance, opts: TasksAc
           "update instances set gateway_reachable = $2, gateway_reachable_at = now(), openclaw_version = coalesce($3, openclaw_version), openclaw_version_at = case when $3 is null then openclaw_version_at else now() end where id = $1",
           [taskTargetId, gatewayReachable, version],
         );
+        if (gatewayReachable) {
+          await resetProbeState(opts.pool, taskTargetId, "gateway");
+        } else {
+          await bumpProbeFailure(opts.pool, taskTargetId, "gateway");
+        }
       }
       if (taskTargetType === "instance" && (taskAction === "skills.install" || taskAction === "skills.update")) {
         await opts.pool.query(
@@ -76,6 +111,7 @@ export async function registerTasksAckRoutes(app: FastifyInstance, opts: TasksAc
           "update instances set skills_snapshot = $2, skills_snapshot_at = now(), skills_snapshot_invalidated_at = null where id = $1",
           [taskTargetId, parsed.data.result ?? {}],
         );
+        await resetProbeState(opts.pool, taskTargetId, "skills");
       }
       reply.send({ ok: true });
       return;
@@ -92,6 +128,10 @@ export async function registerTasksAckRoutes(app: FastifyInstance, opts: TasksAc
       "insert into task_attempts (task_id, attempt, status, error) values ($1, $2, $3, $4)",
       [taskId, nextAttempts, "error", parsed.data.error ?? null],
     );
+
+    if (taskTargetType === "instance" && taskAction === "skills.status") {
+      await bumpProbeFailure(opts.pool, taskTargetId, "skills");
+    }
     reply.send({ ok: true, status: nextStatus });
   });
 }

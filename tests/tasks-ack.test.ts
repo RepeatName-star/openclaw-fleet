@@ -164,3 +164,60 @@ test("skills.status error does not requeue immediately (probe backoff owns retri
   const row = await pool.query("select status from tasks where id = $1", [taskId]);
   expect(row.rows[0].status).toBe("failed");
 });
+
+test("fleet.gateway.probe updates probe backoff state on unreachable and resets on success", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+  const pool = createTestPool(db);
+  const created = await pool.query("insert into instances (name) values ('i-1') returning id");
+  const instanceId = created.rows[0].id as string;
+  const token = await issueDeviceToken(pool, { instanceId, scopes: ["operator.admin"] });
+
+  const task1 = await pool.query(
+    "insert into tasks (target_type, target_id, action, payload) values ($1,$2,$3,$4) returning id",
+    ["instance", instanceId, "fleet.gateway.probe", {}],
+  );
+
+  const app = await buildServer({ pool });
+  const res1 = await app.inject({
+    method: "POST",
+    url: "/v1/tasks/ack",
+    headers: { authorization: `Bearer ${token}` },
+    payload: {
+      task_id: task1.rows[0].id,
+      status: "ok",
+      result: { gateway_reachable: false },
+    },
+  });
+  expect(res1.statusCode).toBe(200);
+
+  const state1 = await pool.query(
+    "select consecutive_failures, next_allowed_at from instance_probe_states where instance_id = $1 and probe_kind = $2",
+    [instanceId, "gateway"],
+  );
+  expect(state1.rows[0].consecutive_failures).toBe(1);
+  expect(state1.rows[0].next_allowed_at).toBeTruthy();
+
+  const task2 = await pool.query(
+    "insert into tasks (target_type, target_id, action, payload) values ($1,$2,$3,$4) returning id",
+    ["instance", instanceId, "fleet.gateway.probe", {}],
+  );
+  const res2 = await app.inject({
+    method: "POST",
+    url: "/v1/tasks/ack",
+    headers: { authorization: `Bearer ${token}` },
+    payload: {
+      task_id: task2.rows[0].id,
+      status: "ok",
+      result: { gateway_reachable: true, openclaw_version: "2026.2.26" },
+    },
+  });
+  expect(res2.statusCode).toBe(200);
+
+  const state2 = await pool.query(
+    "select consecutive_failures, next_allowed_at from instance_probe_states where instance_id = $1 and probe_kind = $2",
+    [instanceId, "gateway"],
+  );
+  expect(state2.rows[0].consecutive_failures).toBe(0);
+  expect(state2.rows[0].next_allowed_at).toBeNull();
+});
