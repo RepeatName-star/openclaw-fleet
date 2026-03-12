@@ -9,6 +9,7 @@ import { registerEnrollRoutes } from "./routes/enroll.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerHeartbeatRoutes } from "./routes/heartbeat.js";
 import { registerInstanceRoutes } from "./routes/instances.js";
+import { registerLabelsRoutes } from "./routes/labels.js";
 import { registerTasksAckRoutes } from "./routes/tasks-ack.js";
 import { registerTasksAdminRoutes } from "./routes/tasks-admin.js";
 import { registerTasksPullRoutes } from "./routes/tasks-pull.js";
@@ -26,6 +27,7 @@ export async function buildServer(options: ServerOptions = {}) {
   await registerEnrollRoutes(app, options);
   await registerHeartbeatRoutes(app, options);
   await registerInstanceRoutes(app, options);
+  await registerLabelsRoutes(app, options);
   await registerTasksPullRoutes(app, options);
   await registerTasksAckRoutes(app, options);
   await registerTasksAdminRoutes(app, options);
