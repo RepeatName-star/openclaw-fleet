@@ -56,9 +56,24 @@ export async function registerTasksAckRoutes(app: FastifyInstance, opts: TasksAc
         "insert into task_attempts (task_id, attempt, status) values ($1, $2, $3)",
         [taskId, currentAttempts, "ok"],
       );
+      if (taskTargetType === "instance" && taskAction === "fleet.gateway.probe") {
+        const gatewayReachable = Boolean((parsed.data.result as any)?.gateway_reachable);
+        const versionRaw = (parsed.data.result as any)?.openclaw_version;
+        const version = typeof versionRaw === "string" && versionRaw.length > 0 ? versionRaw : null;
+        await opts.pool.query(
+          "update instances set gateway_reachable = $2, gateway_reachable_at = now(), openclaw_version = coalesce($3, openclaw_version), openclaw_version_at = case when $3 is null then openclaw_version_at else now() end where id = $1",
+          [taskTargetId, gatewayReachable, version],
+        );
+      }
+      if (taskTargetType === "instance" && (taskAction === "skills.install" || taskAction === "skills.update")) {
+        await opts.pool.query(
+          "update instances set skills_snapshot_invalidated_at = now() where id = $1",
+          [taskTargetId],
+        );
+      }
       if (taskAction === "skills.status" && taskTargetType === "instance") {
         await opts.pool.query(
-          "update instances set skills_snapshot = $2, skills_snapshot_at = now() where id = $1",
+          "update instances set skills_snapshot = $2, skills_snapshot_at = now(), skills_snapshot_invalidated_at = null where id = $1",
           [taskTargetId, parsed.data.result ?? {}],
         );
       }
@@ -67,7 +82,8 @@ export async function registerTasksAckRoutes(app: FastifyInstance, opts: TasksAc
     }
 
     const nextAttempts = currentAttempts + 1;
-    const nextStatus = nextAttempts >= MAX_ATTEMPTS ? "failed" : "pending";
+    const nextStatus =
+      taskAction === "skills.status" ? "failed" : nextAttempts >= MAX_ATTEMPTS ? "failed" : "pending";
     await opts.pool.query(
       "update tasks set status = $2, attempts = $3, updated_at = now() where id = $1",
       [taskId, nextStatus, nextAttempts],
