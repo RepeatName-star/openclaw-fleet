@@ -1,6 +1,8 @@
 import type {
   AgentRunParams,
   ConfigPatchParams,
+  GatewayProbeParams,
+  GatewayProbeResult,
   MemoryReplaceParams,
   SessionResetParams,
   SidecarProvider,
@@ -44,6 +46,15 @@ export function createGenericHttpProvider(options: GenericProviderOptions): Side
   }
 
   return {
+    async gatewayProbe(params: GatewayProbeParams): Promise<GatewayProbeResult> {
+      const res = await postJson("/gateway/probe", params);
+      const reachable = Boolean((res as any)?.gateway_reachable);
+      const version = (res as any)?.openclaw_version;
+      if (version && typeof version === "string") {
+        return { gateway_reachable: reachable, openclaw_version: version };
+      }
+      return { gateway_reachable: reachable };
+    },
     async configPatch(params: ConfigPatchParams) {
       await post("/config/patch", params);
     },

@@ -21,6 +21,12 @@ export type SkillsUpdateParams = {
 
 export type SkillsStatusParams = Record<string, never>;
 
+export type GatewayProbeParams = Record<string, never>;
+export type GatewayProbeResult = {
+  gateway_reachable: boolean;
+  openclaw_version?: string;
+};
+
 export type MemoryReplaceParams = {
   agentId: string;
   content: string;
@@ -39,6 +45,7 @@ export type AgentRunParams = {
 };
 
 export interface SidecarProvider {
+  gatewayProbe(params: GatewayProbeParams): Promise<GatewayProbeResult>;
   configPatch(params: ConfigPatchParams): Promise<void>;
   skillsInstall(params: SkillsInstallParams): Promise<void>;
   skillsUpdate(params: SkillsUpdateParams): Promise<void>;
