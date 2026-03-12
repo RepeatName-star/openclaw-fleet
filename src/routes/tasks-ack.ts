@@ -2,6 +2,8 @@ import { z } from "zod";
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import { requireDeviceToken } from "../auth.js";
+import { redactValue } from "../events/redact.js";
+import { insertArtifact, insertEvent } from "../events/store.js";
 import { computeNextAllowedAtMs } from "../probe/backoff.js";
 
 const AckSchema = z.object({
@@ -18,6 +20,10 @@ type TasksAckOptions = {
 const MAX_ATTEMPTS = 5;
 const PROBE_BACKOFF_BASE_MS = 1000;
 const PROBE_BACKOFF_CAP_MS = 5 * 60_000;
+
+function isProbeAction(action: string) {
+  return action === "fleet.gateway.probe" || action === "skills.status";
+}
 
 async function resetProbeState(pool: Pool, instanceId: string, probeKind: string) {
   await pool.query(
@@ -76,6 +82,7 @@ export async function registerTasksAckRoutes(app: FastifyInstance, opts: TasksAc
     const taskAction = taskRes.rows[0].action as string;
     const taskTargetType = taskRes.rows[0].target_type as string;
     const taskTargetId = taskRes.rows[0].target_id as string;
+    const executingInstanceId = request.device.instanceId;
 
     if (parsed.data.status === "ok") {
       await opts.pool.query(
@@ -113,6 +120,34 @@ export async function registerTasksAckRoutes(app: FastifyInstance, opts: TasksAc
         );
         await resetProbeState(opts.pool, taskTargetId, "skills");
       }
+
+      const linked = await opts.pool.query(
+        "select campaign_id, generation from campaign_instances where task_id = $1 limit 1",
+        [taskId],
+      );
+      const campaignId = linked.rowCount ? String(linked.rows[0].campaign_id) : null;
+      const campaignGen = linked.rowCount ? Number(linked.rows[0].generation) : null;
+      const eventType = campaignId
+        ? "exec.finished"
+        : isProbeAction(taskAction)
+          ? "probe.finished"
+          : "exec.finished";
+      const artifact = await insertArtifact(opts.pool, {
+        kind: "task.result",
+        content: { task_id: taskId, action: taskAction, status: "ok", result: parsed.data.result ?? null },
+      });
+      await insertEvent(opts.pool, {
+        event_type: eventType,
+        campaign_id: campaignId,
+        campaign_generation: campaignGen,
+        instance_id: executingInstanceId,
+        artifact_id: artifact.id,
+        payload: {
+          task_id: taskId,
+          action: taskAction,
+          status: "ok",
+        },
+      });
       reply.send({ ok: true });
       return;
     }
@@ -132,6 +167,44 @@ export async function registerTasksAckRoutes(app: FastifyInstance, opts: TasksAc
     if (taskTargetType === "instance" && taskAction === "skills.status") {
       await bumpProbeFailure(opts.pool, taskTargetId, "skills");
     }
+
+    const linked = await opts.pool.query(
+      "select campaign_id, generation from campaign_instances where task_id = $1 limit 1",
+      [taskId],
+    );
+    const campaignId = linked.rowCount ? String(linked.rows[0].campaign_id) : null;
+    const campaignGen = linked.rowCount ? Number(linked.rows[0].generation) : null;
+    const eventType = campaignId
+      ? "exec.finished"
+      : isProbeAction(taskAction)
+        ? "probe.finished"
+        : "exec.finished";
+    const raw = {
+      task_id: taskId,
+      action: taskAction,
+      status: "error",
+      error: parsed.data.error ?? null,
+      result: parsed.data.result ?? null,
+    };
+    const artifact = await insertArtifact(opts.pool, { kind: "task.error", content: raw });
+    const errorRedacted =
+      typeof parsed.data.error === "string"
+        ? (redactValue(parsed.data.error, { mode: "sensitive" }) as string)
+        : null;
+    await insertEvent(opts.pool, {
+      event_type: eventType,
+      campaign_id: campaignId,
+      campaign_generation: campaignGen,
+      instance_id: executingInstanceId,
+      artifact_id: artifact.id,
+      payload: {
+        task_id: taskId,
+        action: taskAction,
+        status: "error",
+        task_status: nextStatus,
+        error: errorRedacted,
+      },
+    });
     reply.send({ ok: true, status: nextStatus });
   });
 }

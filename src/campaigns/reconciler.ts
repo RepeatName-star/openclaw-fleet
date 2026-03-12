@@ -1,4 +1,6 @@
 import type { Pool } from "pg";
+import { redactValue } from "../events/redact.js";
+import { insertArtifact, insertEvent } from "../events/store.js";
 import { evaluateGate } from "../gate/evaluate.js";
 import { matchLabelSelector, parseLabelSelector } from "../labels/label-selector.js";
 import { ensureProbeTaskScheduled } from "../probe/scheduler.js";
@@ -18,6 +20,8 @@ type InstanceWithLabels = {
 type ReconcilerDeps = {
   getOnline?: (instanceId: string) => Promise<boolean>;
 };
+
+const DEFAULT_EVENT_SENSITIVE_PATHS = [["payload", "message"]];
 
 export async function reconcileOpenCampaignsOnce(pool: Pool, deps: ReconcilerDeps = {}): Promise<void> {
   const campaignsRes = await pool.query(
@@ -95,10 +99,19 @@ export async function reconcileOpenCampaignsOnce(pool: Pool, deps: ReconcilerDep
 
     // Ensure a campaign_instances row exists for each matching instance.
     for (const inst of matching) {
-      await pool.query(
-        "insert into campaign_instances (campaign_id, generation, instance_id, state) values ($1,$2,$3,'pending') on conflict do nothing",
+      const inserted = await pool.query(
+        "insert into campaign_instances (campaign_id, generation, instance_id, state) values ($1,$2,$3,'pending') on conflict do nothing returning instance_id",
         [campaignId, generation, inst.id],
       );
+      if (inserted.rowCount) {
+        await insertEvent(pool, {
+          event_type: "target.added",
+          campaign_id: campaignId,
+          campaign_generation: generation,
+          instance_id: inst.id,
+          payload: { action },
+        });
+      }
     }
 
     // Mark removed when an existing target is no longer in selector scope.
@@ -109,21 +122,31 @@ export async function reconcileOpenCampaignsOnce(pool: Pool, deps: ReconcilerDep
     for (const row of existing.rows) {
       const instanceId = String(row.instance_id);
       if (!matchingIds.has(instanceId)) {
-        await pool.query(
+        const updated = await pool.query(
           "update campaign_instances set state = 'removed', updated_at = now(), last_transition_at = now() where campaign_id = $1 and generation = $2 and instance_id = $3 and state in ('pending','blocked','queued')",
           [campaignId, generation, instanceId],
         );
+        if (updated.rowCount) {
+          await insertEvent(pool, {
+            event_type: "target.removed",
+            campaign_id: campaignId,
+            campaign_generation: generation,
+            instance_id: instanceId,
+            payload: {},
+          });
+        }
       }
     }
 
     // Gate: check and block (no repair). Schedule probes for stale/missing facts.
     const candidates = await pool.query(
-      "select instance_id, state from campaign_instances where campaign_id = $1 and generation = $2 and state in ('pending','blocked')",
+      "select instance_id, state, blocked_reason from campaign_instances where campaign_id = $1 and generation = $2 and state in ('pending','blocked')",
       [campaignId, generation],
     );
     for (const row of candidates.rows) {
       const instanceId = String(row.instance_id);
       const state = String(row.state);
+      const blockedReason = row.blocked_reason === null ? null : String(row.blocked_reason);
       const inst = instancesById.get(instanceId);
       if (!inst) {
         continue;
@@ -145,10 +168,31 @@ export async function reconcileOpenCampaignsOnce(pool: Pool, deps: ReconcilerDep
       );
 
       if (!evaluated.ok) {
-        await pool.query(
-          "update campaign_instances set state = 'blocked', blocked_reason = $4, updated_at = now(), last_transition_at = now() where campaign_id = $1 and generation = $2 and instance_id = $3",
-          [campaignId, generation, instanceId, evaluated.blocked_reason],
-        );
+        const shouldEmitBlocked =
+          state !== "blocked" ||
+          (blockedReason ?? "") !== (evaluated.blocked_reason ?? "");
+        if (shouldEmitBlocked) {
+          await pool.query(
+            "update campaign_instances set state = 'blocked', blocked_reason = $4, updated_at = now(), last_transition_at = now() where campaign_id = $1 and generation = $2 and instance_id = $3",
+            [campaignId, generation, instanceId, evaluated.blocked_reason],
+          );
+          await insertEvent(pool, {
+            event_type: "target.blocked",
+            campaign_id: campaignId,
+            campaign_generation: generation,
+            instance_id: instanceId,
+            facts_snapshot: {
+              online,
+              gateway_reachable: inst.gateway_reachable,
+              gateway_reachable_at: inst.gateway_reachable_at,
+              openclaw_version: inst.openclaw_version,
+              openclaw_version_at: inst.openclaw_version_at,
+              skills_snapshot_at: inst.skills_snapshot_at,
+              skills_snapshot_invalidated_at: inst.skills_snapshot_invalidated_at,
+            },
+            payload: { blocked_reason: evaluated.blocked_reason },
+          });
+        }
         for (const kind of evaluated.needs_probes) {
           await ensureProbeTaskScheduled(pool, instanceId, kind, now);
         }
@@ -160,6 +204,13 @@ export async function reconcileOpenCampaignsOnce(pool: Pool, deps: ReconcilerDep
           "update campaign_instances set state = 'pending', blocked_reason = null, updated_at = now(), last_transition_at = now() where campaign_id = $1 and generation = $2 and instance_id = $3",
           [campaignId, generation, instanceId],
         );
+        await insertEvent(pool, {
+          event_type: "target.unblocked",
+          campaign_id: campaignId,
+          campaign_generation: generation,
+          instance_id: instanceId,
+          payload: {},
+        });
       }
     }
 
@@ -173,10 +224,33 @@ export async function reconcileOpenCampaignsOnce(pool: Pool, deps: ReconcilerDep
         "insert into tasks (target_type, target_id, action, payload) values ('instance',$1,$2,$3) returning id",
         [instanceId, action, payload],
       );
+      const taskId = String(task.rows[0].id);
+      const artifact = await insertArtifact(pool, {
+        kind: "task.payload",
+        content: {
+          task_id: taskId,
+          target_type: "instance",
+          target_id: instanceId,
+          action,
+          payload,
+        },
+      });
+      const redacted = redactValue(
+        { action, payload },
+        { mode: "event", sensitivePaths: DEFAULT_EVENT_SENSITIVE_PATHS },
+      ) as Record<string, unknown>;
       await pool.query(
         "update campaign_instances set state = 'queued', task_id = $4, updated_at = now(), last_transition_at = now() where campaign_id = $1 and generation = $2 and instance_id = $3",
-        [campaignId, generation, instanceId, task.rows[0].id],
+        [campaignId, generation, instanceId, taskId],
       );
+      await insertEvent(pool, {
+        event_type: "exec.queued",
+        campaign_id: campaignId,
+        campaign_generation: generation,
+        instance_id: instanceId,
+        artifact_id: artifact.id,
+        payload: { task_id: taskId, ...redacted },
+      });
     }
   }
 }

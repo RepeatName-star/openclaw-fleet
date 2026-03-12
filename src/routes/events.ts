@@ -91,7 +91,7 @@ export async function registerEventsRoutes(app: FastifyInstance, opts: EventsRou
     }
     const where = conditions.length ? `where ${conditions.join(" and ")}` : "";
     const res = await opts.pool.query(
-      `select ts, event_type, campaign_id, campaign_generation, instance_id, instance_name, artifact_id, payload from events ${where} order by ts asc`,
+      `select ts, event_type, campaign_id, campaign_generation, instance_id, instance_name, labels_snapshot, facts_snapshot, artifact_id, payload from events ${where} order by ts asc`,
       args,
     );
 
@@ -104,6 +104,8 @@ export async function registerEventsRoutes(app: FastifyInstance, opts: EventsRou
         "campaign_generation",
         "instance_id",
         "instance_name",
+        "labels_snapshot",
+        "facts_snapshot",
         "artifact_id",
         "payload",
       ].join(",");
@@ -115,6 +117,8 @@ export async function registerEventsRoutes(app: FastifyInstance, opts: EventsRou
           csvEscape(r.campaign_generation),
           csvEscape(r.instance_id),
           csvEscape(r.instance_name),
+          csvEscape(JSON.stringify(r.labels_snapshot ?? {})),
+          csvEscape(JSON.stringify(r.facts_snapshot ?? null)),
           csvEscape(r.artifact_id),
           csvEscape(JSON.stringify(r.payload ?? {})),
         ].join(","),
@@ -127,4 +131,3 @@ export async function registerEventsRoutes(app: FastifyInstance, opts: EventsRou
     reply.type("application/json").send(body.length ? body + "\n" : "");
   });
 }
-
