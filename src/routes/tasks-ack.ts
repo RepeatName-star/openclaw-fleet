@@ -157,16 +157,19 @@ export async function registerTasksAckRoutes(app: FastifyInstance, opts: TasksAc
       return;
     }
 
-    const nextAttempts = currentAttempts + 1;
     const nextStatus =
-      taskAction === "skills.status" ? "failed" : nextAttempts >= MAX_ATTEMPTS ? "failed" : "pending";
+      taskAction === "skills.status"
+        ? "failed"
+        : currentAttempts >= MAX_ATTEMPTS
+          ? "failed"
+          : "pending";
     await opts.pool.query(
-      "update tasks set status = $2, attempts = $3, updated_at = now() where id = $1",
-      [taskId, nextStatus, nextAttempts],
+      "update tasks set status = $2, updated_at = now() where id = $1",
+      [taskId, nextStatus],
     );
     await opts.pool.query(
       "insert into task_attempts (task_id, attempt, status, error) values ($1, $2, $3, $4)",
-      [taskId, nextAttempts, "error", parsed.data.error ?? null],
+      [taskId, currentAttempts, "error", parsed.data.error ?? null],
     );
 
     if (taskTargetType === "instance" && taskAction === "skills.status") {

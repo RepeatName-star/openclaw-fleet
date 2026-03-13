@@ -14,8 +14,22 @@ type TasksPullOptions = {
   redis?: RedisLike;
 };
 
+const PROBE_TASK_LEASE_MS = 60_000;
+const DEFAULT_TASK_LEASE_MS = 30 * 60_000;
+const SKILL_BUNDLE_TASK_LEASE_MS = 60 * 60_000;
+
 function isProbeAction(action: string) {
   return action === "fleet.gateway.probe" || action === "skills.status";
+}
+
+function leaseTtlMs(action: string) {
+  if (isProbeAction(action)) {
+    return PROBE_TASK_LEASE_MS;
+  }
+  if (action === "fleet.skill_bundle.install") {
+    return SKILL_BUNDLE_TASK_LEASE_MS;
+  }
+  return DEFAULT_TASK_LEASE_MS;
 }
 
 export async function registerTasksPullRoutes(app: FastifyInstance, opts: TasksPullOptions) {
@@ -43,6 +57,12 @@ export async function registerTasksPullRoutes(app: FastifyInstance, opts: TasksP
     );
     const groupIds = groups.rows.map((row: { group_id: string }) => row.group_id as string);
 
+    // Reclaim expired leases to avoid permanently stuck tasks if a sidecar
+    // fails after leasing but before ack (network crash/restart).
+    await opts.pool.query(
+      "update tasks set status = 'pending', lease_expires_at = null, updated_at = now() where status = 'leased' and lease_expires_at is not null and lease_expires_at < now()",
+    );
+
     const candidates = await opts.pool.query(
       "select * from tasks where status = 'pending' and (target_type = 'instance' and target_id = $1 or target_type = 'group' and target_id = any($2::text[])) and (expires_at is null or expires_at > now()) order by created_at asc limit $3",
       [instanceId, groupIds, limit],
@@ -51,13 +71,15 @@ export async function registerTasksPullRoutes(app: FastifyInstance, opts: TasksP
     const leased = [] as Array<Record<string, unknown>>;
     for (const row of candidates.rows) {
       const leaseKey = `task:${row.id}:lease`;
-      const lease = await opts.redis.set(leaseKey, instanceId, "PX", 30000, "NX");
+      const ttlMs = leaseTtlMs(String(row.action));
+      const lease = await opts.redis.set(leaseKey, instanceId, "PX", ttlMs, "NX");
       if (!lease) {
         continue;
       }
+      const leaseExpiresAt = new Date(Date.now() + ttlMs);
       await opts.pool.query(
-        "update tasks set status = 'leased', attempts = attempts + 1, lease_expires_at = now() + interval '30 seconds', updated_at = now() where id = $1",
-        [row.id],
+        "update tasks set status = 'leased', attempts = attempts + 1, lease_expires_at = $2, updated_at = now() where id = $1",
+        [row.id, leaseExpiresAt],
       );
 
       const taskId = String(row.id);

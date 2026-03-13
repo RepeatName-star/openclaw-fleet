@@ -248,3 +248,51 @@ test("fleet.gateway.probe updates probe backoff state on unreachable and resets 
   expect(state2.rows[0].consecutive_failures).toBe(0);
   expect(state2.rows[0].next_allowed_at).toBeNull();
 });
+
+test("tasks ack error does not bump attempts (attempts increment on lease)", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+  const pool = createTestPool(db);
+
+  const created = await pool.query("insert into instances (name) values ('i-1') returning id");
+  const instanceId = created.rows[0].id as string;
+  const token = await issueDeviceToken(pool, { instanceId, scopes: ["operator.admin"] });
+
+  const task = await pool.query(
+    "insert into tasks (target_type, target_id, action, payload) values ($1,$2,$3,$4) returning id",
+    ["instance", instanceId, "skills.update", {}],
+  );
+  const taskId = task.rows[0].id as string;
+
+  const redis = { set: async () => "OK" };
+  const app = await buildServer({ pool, redis });
+
+  const pull = await app.inject({
+    method: "POST",
+    url: "/v1/tasks/pull",
+    headers: { authorization: `Bearer ${token}` },
+    payload: { limit: 1 },
+  });
+  expect(pull.statusCode).toBe(200);
+
+  const leased = await pool.query("select status, attempts from tasks where id = $1", [taskId]);
+  expect(leased.rows[0].status).toBe("leased");
+  expect(Number(leased.rows[0].attempts)).toBe(1);
+
+  const ack = await app.inject({
+    method: "POST",
+    url: "/v1/tasks/ack",
+    headers: { authorization: `Bearer ${token}` },
+    payload: { task_id: taskId, status: "error", error: "boom" },
+  });
+  expect(ack.statusCode).toBe(200);
+
+  const updated = await pool.query("select status, attempts from tasks where id = $1", [taskId]);
+  expect(updated.rows[0].status).toBe("pending");
+  expect(Number(updated.rows[0].attempts)).toBe(1);
+
+  const attempts = await pool.query("select attempt, status from task_attempts where task_id = $1", [taskId]);
+  expect(attempts.rows).toHaveLength(1);
+  expect(Number(attempts.rows[0].attempt)).toBe(1);
+  expect(attempts.rows[0].status).toBe("error");
+});
