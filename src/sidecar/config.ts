@@ -33,7 +33,7 @@ const ConfigSchema = z
     pollIntervalMs: z.number().int().min(1000).default(5000),
     concurrency: z.number().int().min(1).default(2),
     statePath: z.string().min(1),
-    openclawGatewayUrl: z.string().min(1).default("http://127.0.0.1:18793"),
+    openclawGatewayUrl: z.string().min(1).default("ws://127.0.0.1:18789"),
     openclawGatewayToken: z.string().min(1).optional(),
     genericProviderUrl: z.string().min(1).optional(),
     configPath: z.string().min(1),
@@ -95,7 +95,7 @@ export function loadSidecarConfig(env: NodeJS.ProcessEnv): SidecarConfig {
     openclawGatewayUrl:
       env.OPENCLAW_GATEWAY_URL ??
       fileConfig.openclawGatewayUrl ??
-      "http://127.0.0.1:18793",
+      "ws://127.0.0.1:18789",
     openclawGatewayToken: env.OPENCLAW_GATEWAY_TOKEN ?? fileConfig.openclawGatewayToken,
     genericProviderUrl: env.GENERIC_PROVIDER_URL ?? fileConfig.genericProviderUrl,
     configPath,
