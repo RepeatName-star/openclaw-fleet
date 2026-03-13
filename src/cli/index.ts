@@ -1,3 +1,4 @@
+import fs from "node:fs/promises";
 import { createFleetClient } from "./client.js";
 
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
@@ -191,6 +192,71 @@ export async function runCli(
       return 2;
     }
     const res = await client.groupMatches(id);
+    writeJsonLine(io, res);
+    return 0;
+  }
+
+  if (resource === "events" && sub === "export") {
+    const parsedFlags = parseStrictFlags(rest);
+    if (!parsedFlags.ok) {
+      io.stderr.write(`error: ${parsedFlags.error}\n`);
+      return 2;
+    }
+    const format = parsedFlags.flags["format"] ?? "jsonl";
+    const outPath = parsedFlags.flags["out"];
+    const campaignId = parsedFlags.flags["campaign-id"];
+    const instanceId = parsedFlags.flags["instance-id"];
+    const eventType = parsedFlags.flags["event-type"];
+
+    const params: string[] = [`format=${encodeURIComponent(format)}`];
+    if (campaignId) params.push(`campaign_id=${encodeURIComponent(campaignId)}`);
+    if (instanceId) params.push(`instance_id=${encodeURIComponent(instanceId)}`);
+    if (eventType) params.push(`event_type=${encodeURIComponent(eventType)}`);
+    const query = "?" + params.join("&");
+
+    const res = await client.exportEvents(query);
+    if (!res.ok) {
+      io.stderr.write("error: events export failed\n");
+      return 1;
+    }
+    const body = await res.text();
+    if (outPath) {
+      await fs.writeFile(outPath, body, "utf-8");
+      return 0;
+    }
+    io.stdout.write(body);
+    return 0;
+  }
+
+  if (resource === "artifacts" && sub === "get") {
+    const id = rest[0];
+    if (!id) {
+      io.stderr.write("error: missing artifact id\n");
+      return 2;
+    }
+    const res = await client.getArtifact(id);
+    writeJsonLine(io, res);
+    return 0;
+  }
+
+  if (resource === "bundles" && sub === "upload") {
+    const parsedFlags = parseStrictFlags(rest);
+    if (!parsedFlags.ok) {
+      io.stderr.write(`error: ${parsedFlags.error}\n`);
+      return 2;
+    }
+    const name = parsedFlags.flags["name"];
+    const filePath = parsedFlags.flags["file"];
+    if (!name || !filePath) {
+      io.stderr.write("error: bundles upload requires --name and --file\n");
+      return 2;
+    }
+    const content = await fs.readFile(filePath);
+    const res = await client.uploadSkillBundle({
+      name,
+      format: "tar.gz",
+      content_base64: Buffer.from(content).toString("base64"),
+    });
     writeJsonLine(io, res);
     return 0;
   }
