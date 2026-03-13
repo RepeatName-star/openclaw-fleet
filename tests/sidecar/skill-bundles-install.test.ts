@@ -53,3 +53,47 @@ test("fleet.skill_bundle.install downloads and extracts into ~/.openclaw-fleet/s
   expect(String(patched.raw)).toContain(skillsDir);
 });
 
+test("fleet.skill_bundle.install does not delete previous bundle on config.patch failure", async () => {
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "fleet-skill-"));
+  const skillsDir = path.join(tmpRoot, "skills");
+  fs.mkdirSync(path.join(skillsDir, "demo-skill"), { recursive: true });
+  fs.writeFileSync(path.join(skillsDir, "demo-skill", "hello.txt"), "old");
+
+  const srcDir = path.join(tmpRoot, "bundle-src");
+  fs.mkdirSync(srcDir, { recursive: true });
+  fs.writeFileSync(path.join(srcDir, "hello.txt"), "new");
+
+  const tarPath = path.join(tmpRoot, "bundle.tar.gz");
+  execFileSync("tar", ["-czf", tarPath, "-C", srcDir, "."]);
+  const bytes = fs.readFileSync(tarPath);
+  const sha256 = sha256Hex(bytes);
+
+  const state = { executed: {} } as any;
+  const provider = {
+    configGet: async () => ({ baseHash: "h1" }),
+    configPatch: async () => {
+      throw new Error("patch failed");
+    },
+  } as any;
+
+  const controlPlane = {
+    downloadSkillBundle: async () =>
+      bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+  } as any;
+
+  const exec = createExecutor({ provider, state, controlPlane, deviceToken: "t", skillsDir } as any);
+  const res = await exec.run([
+    {
+      id: "t1",
+      action: "fleet.skill_bundle.install",
+      payload: { bundleId: "b1", name: "demo-skill", sha256 },
+    } as any,
+  ]);
+  expect(res.failed).toBe(1);
+
+  const entries = fs.readdirSync(skillsDir);
+  const backup = entries.find((e) => e.startsWith("demo-skill.bak-"));
+  expect(backup).toBeTruthy();
+  const old = fs.readFileSync(path.join(skillsDir, backup!, "hello.txt"), "utf-8");
+  expect(old).toBe("old");
+});

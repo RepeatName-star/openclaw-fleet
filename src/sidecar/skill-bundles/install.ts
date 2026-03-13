@@ -90,12 +90,16 @@ export async function installSkillBundle(params: {
       movedExisting = true;
     }
     await fs.rename(extractDir, destDir);
+  } catch (err) {
+    // Best-effort rollback: if we moved the existing bundle out of the way but failed
+    // to put the new one in place, restore the old bundle.
+    if (movedExisting) {
+      await fs.rename(backupDir, destDir).catch(() => undefined);
+    }
+    throw err;
   } finally {
     // Cleanup staging even if the move fails.
     await fs.rm(stagingWorkDir, { recursive: true, force: true }).catch(() => undefined);
-    if (movedExisting) {
-      await fs.rm(backupDir, { recursive: true, force: true }).catch(() => undefined);
-    }
   }
 
   const cfg = await params.configGet();
@@ -113,5 +117,9 @@ export async function installSkillBundle(params: {
     2,
   );
   await params.configPatch(rawPatch, cfg.baseHash);
-}
 
+  // Only remove the backup after config patch succeeds.
+  if (movedExisting) {
+    await fs.rm(backupDir, { recursive: true, force: true }).catch(() => undefined);
+  }
+}
