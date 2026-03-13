@@ -119,6 +119,11 @@ flowchart TB
   - Tasks list + task detail (attempts + error)
   - Skills snapshot + enable/disable
   - Memory/Persona editor
+  - Labels management (business labels per instance)
+  - Groups (named selectors) management + matches preview
+  - Campaigns management (create/update/close)
+  - Events timeline + export (JSONL/CSV) + artifact viewer
+  - Skill bundles upload/list/download + install helpers (task/campaign)
   - Per-instance OpenClaw console link (`control_ui_url`)
 
 ## Quick Start (Single Host)
