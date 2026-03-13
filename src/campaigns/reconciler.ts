@@ -28,7 +28,7 @@ export async function reconcileOpenCampaignsOnce(pool: Pool, deps: ReconcilerDep
     "select id, selector, action, payload, gate, generation, expires_at from campaigns where status = 'open' order by created_at asc",
   );
   const nowMs = Date.now();
-  const campaigns = campaignsRes.rows.filter((row) => {
+  const campaigns = campaignsRes.rows.filter((row: any) => {
     const expiresAt = row.expires_at as unknown;
     if (expiresAt === null || expiresAt === undefined) {
       return true;
@@ -60,7 +60,7 @@ export async function reconcileOpenCampaignsOnce(pool: Pool, deps: ReconcilerDep
     labelsByInstanceId.set(instanceId, labels);
   }
 
-  const instances: InstanceWithLabels[] = instancesRes.rows.map((row) => ({
+  const instances: InstanceWithLabels[] = instancesRes.rows.map((row: any) => ({
     id: String(row.id),
     name: String(row.name),
     labels: labelsByInstanceId.get(String(row.id)) ?? {},
@@ -89,7 +89,7 @@ export async function reconcileOpenCampaignsOnce(pool: Pool, deps: ReconcilerDep
     const minVersion = typeof minVersionRaw === "string" && minVersionRaw.length > 0 ? minVersionRaw : "0000.0.0";
 
     const parsed = parseLabelSelector(selectorStr);
-    if (parsed.error) {
+    if (!parsed.selector) {
       // v0.1: ignore invalid selector; Milestone 4 will surface this as an event.
       continue;
     }

@@ -109,7 +109,7 @@ export async function registerEventsRoutes(app: FastifyInstance, opts: EventsRou
         "artifact_id",
         "payload",
       ].join(",");
-      const lines = res.rows.map((r) =>
+      const lines = res.rows.map((r: any) =>
         [
           csvEscape(r.ts),
           csvEscape(r.event_type),
@@ -127,7 +127,7 @@ export async function registerEventsRoutes(app: FastifyInstance, opts: EventsRou
       return;
     }
 
-    const body = res.rows.map((r) => JSON.stringify(r)).join("\n");
+    const body = res.rows.map((r: any) => JSON.stringify(r)).join("\n");
     reply.type("application/json").send(body.length ? body + "\n" : "");
   });
 }

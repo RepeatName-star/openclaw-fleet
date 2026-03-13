@@ -16,7 +16,9 @@ export type ParseLabelSelectorResult =
   | { selector: LabelSelector; error?: undefined }
   | { selector?: undefined; error: string };
 
-function splitTopLevelCommas(input: string): ParseLabelSelectorResult | { parts: string[] } {
+type ParseResult<T> = { ok: true; value: T } | { ok: false; error: string };
+
+function splitTopLevelCommas(input: string): ParseResult<string[]> {
   const parts = [] as string[];
   let buf = "";
   let depth = 0;
@@ -30,7 +32,7 @@ function splitTopLevelCommas(input: string): ParseLabelSelectorResult | { parts:
     if (ch === ")") {
       depth--;
       if (depth < 0) {
-        return { error: "unmatched ')'" };
+        return { ok: false, error: "unmatched ')'" };
       }
       buf += ch;
       continue;
@@ -46,48 +48,48 @@ function splitTopLevelCommas(input: string): ParseLabelSelectorResult | { parts:
     buf += ch;
   }
   if (depth !== 0) {
-    return { error: "unmatched '('" };
+    return { ok: false, error: "unmatched '('" };
   }
   const last = buf.trim();
   if (last.length > 0) {
     parts.push(last);
   }
-  return { parts };
+  return { ok: true, value: parts };
 }
 
-function parseKey(key: string): ParseLabelSelectorResult | { key: string } {
+function parseKey(key: string): ParseResult<string> {
   const trimmed = key.trim();
   const res = validateK8sLabelKey(trimmed);
   if (!res.ok) {
-    return { error: `invalid label key: ${trimmed}` };
+    return { ok: false, error: `invalid label key: ${trimmed}` };
   }
-  return { key: trimmed };
+  return { ok: true, value: trimmed };
 }
 
-function parseValue(value: string): ParseLabelSelectorResult | { value: string } {
+function parseValue(value: string): ParseResult<string> {
   const trimmed = value.trim();
   const res = validateK8sLabelValue(trimmed);
   if (!res.ok) {
-    return { error: `invalid label value: ${trimmed}` };
+    return { ok: false, error: `invalid label value: ${trimmed}` };
   }
-  return { value: trimmed };
+  return { ok: true, value: trimmed };
 }
 
-function parseValues(values: string): ParseLabelSelectorResult | { values: string[] } {
+function parseValues(values: string): ParseResult<string[]> {
   const parts = values
     .split(",")
     .map((v) => v.trim())
     .filter((v) => v.length > 0);
   if (parts.length === 0) {
-    return { error: "empty values list" };
+    return { ok: false, error: "empty values list" };
   }
   for (const v of parts) {
     const res = validateK8sLabelValue(v);
     if (!res.ok) {
-      return { error: `invalid label value: ${v}` };
+      return { ok: false, error: `invalid label value: ${v}` };
     }
   }
-  return { values: parts };
+  return { ok: true, value: parts };
 }
 
 export function parseLabelSelector(input: string): ParseLabelSelectorResult {
@@ -97,16 +99,16 @@ export function parseLabelSelector(input: string): ParseLabelSelectorResult {
   }
 
   const split = splitTopLevelCommas(trimmed);
-  if ("error" in split) {
-    return split;
+  if (!split.ok) {
+    return { error: split.error };
   }
 
   const requirements = [] as LabelSelectorRequirement[];
-  for (const expr of split.parts) {
+  for (const expr of split.value) {
     if (expr.startsWith("!")) {
       const keyRes = parseKey(expr.slice(1));
-      if ("error" in keyRes) return keyRes;
-      requirements.push({ op: "doesNotExist", key: keyRes.key });
+      if (!keyRes.ok) return { error: keyRes.error };
+      requirements.push({ op: "doesNotExist", key: keyRes.value });
       continue;
     }
 
@@ -114,11 +116,11 @@ export function parseLabelSelector(input: string): ParseLabelSelectorResult {
     if (setMatch) {
       const [, rawKey, opRaw, rawValues] = setMatch;
       const keyRes = parseKey(rawKey);
-      if ("error" in keyRes) return keyRes;
+      if (!keyRes.ok) return { error: keyRes.error };
       const valuesRes = parseValues(rawValues);
-      if ("error" in valuesRes) return valuesRes;
+      if (!valuesRes.ok) return { error: valuesRes.error };
       const op = opRaw.toLowerCase() as "in" | "notin";
-      requirements.push({ op, key: keyRes.key, values: valuesRes.values });
+      requirements.push({ op, key: keyRes.value, values: valuesRes.value });
       continue;
     }
 
@@ -127,10 +129,10 @@ export function parseLabelSelector(input: string): ParseLabelSelectorResult {
       const rawKey = expr.slice(0, notEqIdx);
       const rawValue = expr.slice(notEqIdx + 2);
       const keyRes = parseKey(rawKey);
-      if ("error" in keyRes) return keyRes;
+      if (!keyRes.ok) return { error: keyRes.error };
       const valueRes = parseValue(rawValue);
-      if ("error" in valueRes) return valueRes;
-      requirements.push({ op: "neq", key: keyRes.key, value: valueRes.value });
+      if (!valueRes.ok) return { error: valueRes.error };
+      requirements.push({ op: "neq", key: keyRes.value, value: valueRes.value });
       continue;
     }
 
@@ -139,16 +141,16 @@ export function parseLabelSelector(input: string): ParseLabelSelectorResult {
       const rawKey = expr.slice(0, eqIdx);
       const rawValue = expr.slice(eqIdx + 1);
       const keyRes = parseKey(rawKey);
-      if ("error" in keyRes) return keyRes;
+      if (!keyRes.ok) return { error: keyRes.error };
       const valueRes = parseValue(rawValue);
-      if ("error" in valueRes) return valueRes;
-      requirements.push({ op: "eq", key: keyRes.key, value: valueRes.value });
+      if (!valueRes.ok) return { error: valueRes.error };
+      requirements.push({ op: "eq", key: keyRes.value, value: valueRes.value });
       continue;
     }
 
     const keyRes = parseKey(expr);
-    if ("error" in keyRes) return keyRes;
-    requirements.push({ op: "exists", key: keyRes.key });
+    if (!keyRes.ok) return { error: keyRes.error };
+    requirements.push({ op: "exists", key: keyRes.value });
   }
 
   return { selector: { requirements } };
@@ -193,4 +195,3 @@ export function matchLabelSelector(selector: LabelSelector, labels: Record<strin
   }
   return true;
 }
-

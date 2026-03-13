@@ -43,7 +43,7 @@ export async function registerGroupsRoutes(app: FastifyInstance, opts: GroupsRou
     }
 
     const selectorParsed = parseLabelSelector(parsed.data.selector);
-    if (selectorParsed.error) {
+    if (!selectorParsed.selector) {
       reply.code(400).send({ error: "invalid selector" });
       return;
     }
@@ -86,7 +86,7 @@ export async function registerGroupsRoutes(app: FastifyInstance, opts: GroupsRou
 
     if (parsed.data.selector) {
       const selectorParsed = parseLabelSelector(parsed.data.selector);
-      if (selectorParsed.error) {
+      if (!selectorParsed.selector) {
         reply.code(400).send({ error: "invalid selector" });
         return;
       }
@@ -130,7 +130,7 @@ export async function registerGroupsRoutes(app: FastifyInstance, opts: GroupsRou
     }
     const selectorStr = group.rows[0].selector as string;
     const parsed = parseLabelSelector(selectorStr ?? "");
-    if (parsed.error) {
+    if (!parsed.selector) {
       reply.code(500).send({ error: "invalid selector stored" });
       return;
     }
@@ -157,4 +157,3 @@ export async function registerGroupsRoutes(app: FastifyInstance, opts: GroupsRou
     reply.send({ items });
   });
 }
-
