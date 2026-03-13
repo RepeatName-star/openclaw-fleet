@@ -55,6 +55,7 @@ test("groups page renders", () => {
 test("campaigns page renders", () => {
   const html = render(React.createElement(CampaignsPage));
   expect(html).toContain("Campaigns");
+  expect(html).toContain("创建 Campaign");
 });
 
 test("events page renders", () => {
