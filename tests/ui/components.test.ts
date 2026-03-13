@@ -43,6 +43,7 @@ test("memory page renders", () => {
 test("labels page renders", () => {
   const html = render(React.createElement(LabelsPage));
   expect(html).toContain("Labels");
+  expect(html).toContain("选择实例");
 });
 
 test("groups page renders", () => {
