@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type {
   AgentRunParams,
+  ConfigGetParams,
+  ConfigGetResult,
   ConfigPatchParams,
+  GatewayProbeParams,
+  GatewayProbeResult,
   MemoryReplaceParams,
   SessionResetParams,
   SidecarProvider,
@@ -18,6 +22,17 @@ export function createOpenClawProvider(options: OpenClawProviderOptions): Sideca
   const gateway = options.gateway;
 
   return {
+    async gatewayProbe(_params: GatewayProbeParams): Promise<GatewayProbeResult> {
+      const helloOk = gateway.getHelloOk?.();
+      const version = (helloOk as any)?.server?.version;
+      if (version && typeof version === "string") {
+        return { gateway_reachable: true, openclaw_version: version };
+      }
+      return { gateway_reachable: false };
+    },
+    async configGet(params: ConfigGetParams): Promise<ConfigGetResult> {
+      return gateway.request("config.get", params) as Promise<ConfigGetResult>;
+    },
     async configPatch(params: ConfigPatchParams) {
       await gateway.request("config.patch", params);
     },

@@ -9,6 +9,7 @@
     "sidecar:dev": "pnpm build && node dist/sidecar/cli.js",
     "sidecar:dev:ts": "node --enable-source-maps --loader ts-node/esm src/sidecar/cli.ts",
     "sidecar:start": "node dist/sidecar/cli.js",
+    "fleet:cli:ts": "node --enable-source-maps --loader ts-node/esm src/cli/index.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
     "test": "vitest run",

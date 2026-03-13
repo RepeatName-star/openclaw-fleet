@@ -15,6 +15,7 @@ const DEFAULT_REQUEST_TIMEOUT_MS = 30000;
 export type GatewayClient = {
   request: (method: string, params?: unknown, opts?: { timeoutMs?: number }) => Promise<unknown>;
   close: () => void;
+  getHelloOk: () => unknown | null;
 };
 
 export type GatewayConnectDevice = {
@@ -122,6 +123,7 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
   let ready: Promise<void>;
   let connectNonce: string | null = null;
   let connectSent = false;
+  let helloOk: unknown | null = null;
   let connectTimer: NodeJS.Timeout | null = null;
   let reconnectTimer: NodeJS.Timeout | null = null;
   let closed = false;
@@ -173,7 +175,10 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
     }
     const id = randomUUID();
     pending.set(id, {
-      resolve: () => readyResolve?.(),
+      resolve: (payload) => {
+        helloOk = payload;
+        readyResolve?.();
+      },
       reject: (err) => readyReject?.(err),
     });
     const params = buildConnectParams({
@@ -281,6 +286,7 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
     }
     rejectAllPending(err);
     logWarn(err.message);
+    helloOk = null;
     if (connectTimer) {
       clearTimeout(connectTimer);
       connectTimer = null;
@@ -300,6 +306,7 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
     }
     rejectAllPending(error);
     logError(`gateway error: ${String(err)}`);
+    helloOk = null;
     resetReady();
     scheduleReconnect();
   };
@@ -402,6 +409,7 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
       }
       ws?.close();
     },
+    getHelloOk: () => helloOk,
   };
 }
 

@@ -5,14 +5,20 @@ import fastifyStatic from "@fastify/static";
 import type { Pool } from "pg";
 import type { AppConfig } from "./config.js";
 import type { RedisLike } from "./redis.js";
+import { registerCampaignRoutes } from "./routes/campaigns.js";
+import { registerArtifactsRoutes } from "./routes/artifacts.js";
+import { registerEventsRoutes } from "./routes/events.js";
 import { registerEnrollRoutes } from "./routes/enroll.js";
+import { registerGroupsRoutes } from "./routes/groups.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerHeartbeatRoutes } from "./routes/heartbeat.js";
 import { registerInstanceRoutes } from "./routes/instances.js";
+import { registerLabelsRoutes } from "./routes/labels.js";
 import { registerTasksAckRoutes } from "./routes/tasks-ack.js";
 import { registerTasksAdminRoutes } from "./routes/tasks-admin.js";
 import { registerTasksPullRoutes } from "./routes/tasks-pull.js";
 import { registerTasksQueryRoutes } from "./routes/tasks-query.js";
+import { registerSkillBundleRoutes } from "./routes/skill-bundles.js";
 
 type ServerOptions = {
   config?: AppConfig;
@@ -26,6 +32,12 @@ export async function buildServer(options: ServerOptions = {}) {
   await registerEnrollRoutes(app, options);
   await registerHeartbeatRoutes(app, options);
   await registerInstanceRoutes(app, options);
+  await registerLabelsRoutes(app, options);
+  await registerGroupsRoutes(app, options);
+  await registerCampaignRoutes(app, options);
+  await registerEventsRoutes(app, options);
+  await registerArtifactsRoutes(app, options);
+  await registerSkillBundleRoutes(app, options);
   await registerTasksPullRoutes(app, options);
   await registerTasksAckRoutes(app, options);
   await registerTasksAdminRoutes(app, options);

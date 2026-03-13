@@ -76,10 +76,22 @@ export function createControlPlaneClient(options: ControlPlaneClientOptions) {
     }
   }
 
+  async function downloadSkillBundle(deviceToken: string, bundleId: string): Promise<ArrayBuffer> {
+    const res = await fetcher(`${baseUrl}/v1/skill-bundles/${bundleId}/download`, {
+      method: "GET",
+      headers: { authorization: `Bearer ${deviceToken}` },
+    });
+    if (!res.ok) {
+      throw new Error("download bundle failed");
+    }
+    return res.arrayBuffer();
+  }
+
   return {
     enroll,
     heartbeat,
     pullTasks,
     ackTask,
+    downloadSkillBundle,
   };
 }

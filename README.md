@@ -105,6 +105,7 @@ flowchart TB
 - Heartbeats + online status
 - Outbound-only control plane connectivity (works behind NAT / no inbound ports required on hosts)
 - Task dispatch + retries + attempt history
+- Bulk management (v0.1): labels (`biz.openclaw.io/*`) + K8s-style selectors, groups (named selectors), campaigns (fan-out + dynamic membership), gate/probe/facts, events/artifacts/export, remote skill bundles (`tar.gz`)
 - Actions:
   - `agent.run`
   - `session.reset`
@@ -139,6 +140,8 @@ cp .env.example .env
 # 4) Run migrations
 cat migrations/001_init.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
 cat migrations/002_instance_task_metadata.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
+cat migrations/003_bulk_management_v0_1.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
+cat migrations/004_probe_states.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
 
 # 5) Build + start control plane (serves UI if dist/ui exists)
 pnpm build
@@ -196,6 +199,8 @@ Run all SQL files in `migrations/` against your Postgres database:
 
 - `migrations/001_init.sql`
 - `migrations/002_instance_task_metadata.sql`
+- `migrations/003_bulk_management_v0_1.sql`
+- `migrations/004_probe_states.sql`
 
 ## API
 
@@ -210,6 +215,10 @@ UI-related read endpoints:
 - `GET /v1/tasks/:id`
 - `GET /v1/tasks/:id/attempts`
 
+## CLI
+
+See `docs/cli.md` for v0.1 CLI usage (labels/selectors/groups/campaigns/events/artifacts/skill bundles).
+
 ## Sidecar
 
 See `docs/sidecar.md` for sidecar configuration and usage.
@@ -221,6 +230,9 @@ See `docs/cloud-deploy.md` for a single-host cloud deployment and test flow.
 ## Roadmap
 
 See `docs/roadmap.md` for the full roadmap and milestones.
+See `docs/bulk-management.md` for the locked-down semantics of Selector/Campaign/Policy.
+See `docs/v0.1-scope.md` for the v0.1 feature checklist + boundaries.
+See `docs/plans/2026-03-11-bulk-management-v0.1.md` for the v0.1 implementation plan.
 
 - Group/label based task dispatch
 - Group and label management UI

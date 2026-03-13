@@ -29,6 +29,9 @@ Run DB migration (one-time):
 
 ```bash
 psql "$DATABASE_URL" -f migrations/001_init.sql
+psql "$DATABASE_URL" -f migrations/002_instance_task_metadata.sql
+psql "$DATABASE_URL" -f migrations/003_bulk_management_v0_1.sql
+psql "$DATABASE_URL" -f migrations/004_probe_states.sql
 ```
 
 Start control plane:

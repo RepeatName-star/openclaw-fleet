@@ -6,6 +6,9 @@ export type ConfigPatchParams = {
   restartDelayMs?: number;
 };
 
+export type ConfigGetParams = Record<string, never>;
+export type ConfigGetResult = { baseHash?: string } & Record<string, unknown>;
+
 export type SkillsInstallParams = {
   name: string;
   installId: string;
@@ -20,6 +23,12 @@ export type SkillsUpdateParams = {
 };
 
 export type SkillsStatusParams = Record<string, never>;
+
+export type GatewayProbeParams = Record<string, never>;
+export type GatewayProbeResult = {
+  gateway_reachable: boolean;
+  openclaw_version?: string;
+};
 
 export type MemoryReplaceParams = {
   agentId: string;
@@ -39,6 +48,8 @@ export type AgentRunParams = {
 };
 
 export interface SidecarProvider {
+  gatewayProbe(params: GatewayProbeParams): Promise<GatewayProbeResult>;
+  configGet(params: ConfigGetParams): Promise<ConfigGetResult>;
   configPatch(params: ConfigPatchParams): Promise<void>;
   skillsInstall(params: SkillsInstallParams): Promise<void>;
   skillsUpdate(params: SkillsUpdateParams): Promise<void>;

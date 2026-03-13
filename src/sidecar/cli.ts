@@ -49,7 +49,7 @@ export async function startSidecar(env: NodeJS.ProcessEnv = process.env) {
     provider = createOpenClawProvider({ gateway });
   }
 
-  const executor = createExecutor({ provider, state });
+  const executor = createExecutor({ provider, state, controlPlane, deviceToken });
   const scheduler = createScheduler({
     controlPlane,
     executor,
