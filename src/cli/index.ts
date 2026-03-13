@@ -129,6 +129,72 @@ export async function runCli(
     return 0;
   }
 
+  if (resource === "labels" && sub === "get") {
+    const instanceId = rest[0];
+    if (!instanceId) {
+      io.stderr.write("error: missing instance id\n");
+      return 2;
+    }
+    const res = await client.listInstanceLabels(instanceId);
+    writeJsonLine(io, res);
+    return 0;
+  }
+  if (resource === "labels" && sub === "set") {
+    const instanceId = rest[0];
+    const key = rest[1];
+    const value = rest[2];
+    if (!instanceId || !key || value === undefined) {
+      io.stderr.write("error: usage: labels set <instanceId> <key> <value>\n");
+      return 2;
+    }
+    const res = await client.upsertInstanceLabel(instanceId, { key, value });
+    writeJsonLine(io, res);
+    return 0;
+  }
+  if (resource === "labels" && (sub === "del" || sub === "delete" || sub === "rm")) {
+    const instanceId = rest[0];
+    const key = rest[1];
+    if (!instanceId || !key) {
+      io.stderr.write("error: usage: labels del <instanceId> <key>\n");
+      return 2;
+    }
+    const res = await client.deleteInstanceLabel(instanceId, key);
+    writeJsonLine(io, res);
+    return 0;
+  }
+
+  if (resource === "groups" && sub === "list") {
+    const res = await client.listGroups();
+    writeJsonLine(io, res);
+    return 0;
+  }
+  if (resource === "groups" && sub === "create") {
+    const parsedFlags = parseStrictFlags(rest);
+    if (!parsedFlags.ok) {
+      io.stderr.write(`error: ${parsedFlags.error}\n`);
+      return 2;
+    }
+    const name = parsedFlags.flags["name"];
+    const selector = parsedFlags.flags["selector"];
+    if (!name || !selector) {
+      io.stderr.write("error: groups create requires --name, --selector\n");
+      return 2;
+    }
+    const res = await client.createGroup({ name, selector });
+    writeJsonLine(io, res);
+    return 0;
+  }
+  if (resource === "groups" && sub === "matches") {
+    const id = rest[0];
+    if (!id) {
+      io.stderr.write("error: missing group id\n");
+      return 2;
+    }
+    const res = await client.groupMatches(id);
+    writeJsonLine(io, res);
+    return 0;
+  }
+
   io.stderr.write(`error: unknown command: ${parsed.command.join(" ")}\n`);
   return 2;
 }
