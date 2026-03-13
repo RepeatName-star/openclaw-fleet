@@ -67,4 +67,5 @@ test("events page renders", () => {
 test("skill bundles page renders", () => {
   const html = render(React.createElement(SkillBundlesPage));
   expect(html).toContain("Skill Bundles");
+  expect(html).toContain("上传 Bundle");
 });
