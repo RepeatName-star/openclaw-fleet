@@ -18,6 +18,7 @@ import { registerTasksAckRoutes } from "./routes/tasks-ack.js";
 import { registerTasksAdminRoutes } from "./routes/tasks-admin.js";
 import { registerTasksPullRoutes } from "./routes/tasks-pull.js";
 import { registerTasksQueryRoutes } from "./routes/tasks-query.js";
+import { registerSkillBundleRoutes } from "./routes/skill-bundles.js";
 
 type ServerOptions = {
   config?: AppConfig;
@@ -36,6 +37,7 @@ export async function buildServer(options: ServerOptions = {}) {
   await registerCampaignRoutes(app, options);
   await registerEventsRoutes(app, options);
   await registerArtifactsRoutes(app, options);
+  await registerSkillBundleRoutes(app, options);
   await registerTasksPullRoutes(app, options);
   await registerTasksAckRoutes(app, options);
   await registerTasksAdminRoutes(app, options);
