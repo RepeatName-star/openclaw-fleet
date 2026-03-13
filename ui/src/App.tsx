@@ -65,11 +65,12 @@ export default function App() {
 
   const content = useMemo(() => {
     const clean = route.replace(/^#\/?/, "");
-    if (clean.startsWith("tasks/")) {
-      const taskId = clean.replace("tasks/", "");
+    const path = clean.split("?")[0] ?? clean;
+    if (path.startsWith("tasks/")) {
+      const taskId = path.replace("tasks/", "");
       return <TaskDetailPage taskId={taskId} />;
     }
-    switch (clean) {
+    switch (path) {
       case "tasks":
         return <TasksPage />;
       case "skills":

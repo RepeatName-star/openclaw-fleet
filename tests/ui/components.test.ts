@@ -61,6 +61,7 @@ test("campaigns page renders", () => {
 test("events page renders", () => {
   const html = render(React.createElement(EventsPage));
   expect(html).toContain("Events");
+  expect(html).toContain("导出 JSONL");
 });
 
 test("skill bundles page renders", () => {
