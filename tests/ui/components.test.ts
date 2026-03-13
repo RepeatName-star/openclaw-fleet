@@ -49,6 +49,7 @@ test("labels page renders", () => {
 test("groups page renders", () => {
   const html = render(React.createElement(GroupsPage));
   expect(html).toContain("Groups");
+  expect(html).toContain("创建分组");
 });
 
 test("campaigns page renders", () => {
