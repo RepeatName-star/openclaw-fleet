@@ -107,7 +107,12 @@ export async function registerTasksAckRoutes(app: FastifyInstance, opts: TasksAc
           await bumpProbeFailure(opts.pool, taskTargetId, "gateway");
         }
       }
-      if (taskTargetType === "instance" && (taskAction === "skills.install" || taskAction === "skills.update")) {
+      if (
+        taskTargetType === "instance" &&
+        (taskAction === "skills.install" ||
+          taskAction === "skills.update" ||
+          taskAction === "fleet.skill_bundle.install")
+      ) {
         await opts.pool.query(
           "update instances set skills_snapshot_invalidated_at = now() where id = $1",
           [taskTargetId],

@@ -135,6 +135,33 @@ test("skills.install ok invalidates skills snapshot", async () => {
   expect(row.rows[0].skills_snapshot_invalidated_at).toBeTruthy();
 });
 
+test("fleet.skill_bundle.install ok invalidates skills snapshot", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+  const pool = createTestPool(db);
+  const created = await pool.query("insert into instances (name) values ('i-1') returning id");
+  const instanceId = created.rows[0].id as string;
+  const token = await issueDeviceToken(pool, { instanceId, scopes: ["operator.admin"] });
+  const task = await pool.query(
+    "insert into tasks (target_type, target_id, action, payload) values ($1,$2,$3,$4) returning id",
+    ["instance", instanceId, "fleet.skill_bundle.install", {}],
+  );
+
+  const app = await buildServer({ pool });
+  const res = await app.inject({
+    method: "POST",
+    url: "/v1/tasks/ack",
+    headers: { authorization: `Bearer ${token}` },
+    payload: { task_id: task.rows[0].id, status: "ok" },
+  });
+  expect(res.statusCode).toBe(200);
+
+  const row = await pool.query("select skills_snapshot_invalidated_at from instances where id = $1", [
+    instanceId,
+  ]);
+  expect(row.rows[0].skills_snapshot_invalidated_at).toBeTruthy();
+});
+
 test("skills.status error does not requeue immediately (probe backoff owns retries)", async () => {
   const db = initTestDb();
   await runMigrations(db);
