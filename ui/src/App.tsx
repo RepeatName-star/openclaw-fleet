@@ -4,12 +4,22 @@ import TasksPage from "./pages/Tasks";
 import TaskDetailPage from "./pages/TaskDetail";
 import SkillsPage from "./pages/Skills";
 import MemoryPage from "./pages/Memory";
+import LabelsPage from "./pages/Labels";
+import GroupsPage from "./pages/Groups";
+import CampaignsPage from "./pages/Campaigns";
+import EventsPage from "./pages/Events";
+import SkillBundlesPage from "./pages/SkillBundles";
 
 const NAV_ITEMS = [
   { key: "instances", label: "Instances" },
   { key: "tasks", label: "Tasks" },
   { key: "skills", label: "Skills" },
   { key: "memory", label: "Memory/Persona" },
+  { key: "labels", label: "Labels" },
+  { key: "groups", label: "Groups" },
+  { key: "campaigns", label: "Campaigns" },
+  { key: "events", label: "Events" },
+  { key: "bundles", label: "Skill Bundles" },
 ];
 
 function getRoute() {
@@ -66,6 +76,16 @@ export default function App() {
         return <SkillsPage />;
       case "memory":
         return <MemoryPage />;
+      case "labels":
+        return <LabelsPage />;
+      case "groups":
+        return <GroupsPage />;
+      case "campaigns":
+        return <CampaignsPage />;
+      case "events":
+        return <EventsPage />;
+      case "bundles":
+        return <SkillBundlesPage />;
       case "instances":
       default:
         return <InstancesPage />;
