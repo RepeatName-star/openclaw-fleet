@@ -25,7 +25,7 @@ Example:
   "pollIntervalMs": 5000,
   "concurrency": 2,
   "statePath": "/home/user/.openclaw-fleet/sidecar-state.json",
-  "openclawGatewayUrl": "http://127.0.0.1:18793",
+  "openclawGatewayUrl": "ws://127.0.0.1:18789",
   "openclawGatewayToken": "<optional>"
 }
 ```

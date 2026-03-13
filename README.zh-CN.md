@@ -105,6 +105,7 @@ flowchart TB
 - 心跳上报 + 在线状态
 - 仅出站连接控制面（可在 NAT 后运行，无需开放入站端口）
 - 任务下发 + 重试 + attempt 记录
+- 批量管理（v0.1）：业务标签（`biz.openclaw.io/*`）+ K8s selector、Group（命名 selector）、Campaign（fan-out + 动态成员）、Gate/Probe/Facts、Events/Artifacts/Export、远程 Skill Bundle（`tar.gz`）
 - 支持的动作：
   - `agent.run`
   - `session.reset`
@@ -138,6 +139,8 @@ cp .env.example .env
 # 4) 运行迁移
 cat migrations/001_init.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
 cat migrations/002_instance_task_metadata.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
+cat migrations/003_bulk_management_v0_1.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
+cat migrations/004_probe_states.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
 
 # 5) 构建并启动控制面（dist/ui 存在时可直接提供 UI）
 pnpm build
@@ -195,6 +198,8 @@ ENROLLMENT_SECRET=change-me
 
 - `migrations/001_init.sql`
 - `migrations/002_instance_task_metadata.sql`
+- `migrations/003_bulk_management_v0_1.sql`
+- `migrations/004_probe_states.sql`
 
 ## API
 
@@ -208,6 +213,10 @@ UI 相关只读接口：
 - `GET /v1/tasks`
 - `GET /v1/tasks/:id`
 - `GET /v1/tasks/:id/attempts`
+
+## CLI
+
+v0.1 的 CLI 使用说明（labels/selectors/groups/campaigns/events/artifacts/skill bundles）见 `docs/cli.md`。
 
 ## Sidecar
 

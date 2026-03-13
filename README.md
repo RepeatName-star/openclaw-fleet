@@ -105,6 +105,7 @@ flowchart TB
 - Heartbeats + online status
 - Outbound-only control plane connectivity (works behind NAT / no inbound ports required on hosts)
 - Task dispatch + retries + attempt history
+- Bulk management (v0.1): labels (`biz.openclaw.io/*`) + K8s-style selectors, groups (named selectors), campaigns (fan-out + dynamic membership), gate/probe/facts, events/artifacts/export, remote skill bundles (`tar.gz`)
 - Actions:
   - `agent.run`
   - `session.reset`
@@ -139,6 +140,8 @@ cp .env.example .env
 # 4) Run migrations
 cat migrations/001_init.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
 cat migrations/002_instance_task_metadata.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
+cat migrations/003_bulk_management_v0_1.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
+cat migrations/004_probe_states.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
 
 # 5) Build + start control plane (serves UI if dist/ui exists)
 pnpm build
@@ -196,6 +199,8 @@ Run all SQL files in `migrations/` against your Postgres database:
 
 - `migrations/001_init.sql`
 - `migrations/002_instance_task_metadata.sql`
+- `migrations/003_bulk_management_v0_1.sql`
+- `migrations/004_probe_states.sql`
 
 ## API
 
@@ -209,6 +214,10 @@ UI-related read endpoints:
 - `GET /v1/tasks`
 - `GET /v1/tasks/:id`
 - `GET /v1/tasks/:id/attempts`
+
+## CLI
+
+See `docs/cli.md` for v0.1 CLI usage (labels/selectors/groups/campaigns/events/artifacts/skill bundles).
 
 ## Sidecar
 
