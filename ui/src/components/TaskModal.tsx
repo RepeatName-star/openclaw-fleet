@@ -18,6 +18,8 @@ const ACTIONS = [
   "skills.update",
   "skills.install",
   "skills.status",
+  "fleet.gateway.probe",
+  "fleet.skill_bundle.install",
 ] as const;
 
 type ActionType = (typeof ACTIONS)[number];
@@ -48,6 +50,9 @@ export default function TaskModal({
   const [installName, setInstallName] = useState("");
   const [installId, setInstallId] = useState("");
   const [installTimeout, setInstallTimeout] = useState("");
+  const [bundleId, setBundleId] = useState("");
+  const [bundleName, setBundleName] = useState("");
+  const [bundleSha256, setBundleSha256] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const prevOpen = useRef(false);
@@ -72,6 +77,9 @@ export default function TaskModal({
     setInstallName("");
     setInstallId("");
     setInstallTimeout("");
+    setBundleId("");
+    setBundleName("");
+    setBundleSha256("");
   }, [open, defaultTargetId, initialAction, instances]);
 
   if (!open) {
@@ -130,6 +138,10 @@ export default function TaskModal({
           installId,
           timeoutMs: installTimeout ? Number(installTimeout) : undefined,
         };
+      } else if (action === "fleet.gateway.probe") {
+        payload = {};
+      } else if (action === "fleet.skill_bundle.install") {
+        payload = { bundleId, name: bundleName, sha256: bundleSha256 };
       }
 
       const res = await api.createTask({
@@ -279,6 +291,36 @@ export default function TaskModal({
 
           {action === "skills.status" ? (
             <div className="hint">仅触发刷新，无需额外参数。</div>
+          ) : null}
+
+          {action === "fleet.gateway.probe" ? (
+            <div className="hint">无需额外参数。</div>
+          ) : null}
+
+          {action === "fleet.skill_bundle.install" ? (
+            <div className="grid-two">
+              <label>
+                Bundle ID
+                <input value={bundleId} onChange={(event) => setBundleId(event.target.value)} />
+              </label>
+              <label>
+                Bundle Name
+                <input
+                  value={bundleName}
+                  onChange={(event) => setBundleName(event.target.value)}
+                />
+              </label>
+              <label className="span-two">
+                Bundle SHA256
+                <input
+                  value={bundleSha256}
+                  onChange={(event) => setBundleSha256(event.target.value)}
+                />
+              </label>
+              <div className="span-two hint">
+                注意：payload 的 key 必须是 <span className="mono">bundleId/name/sha256</span>。
+              </div>
+            </div>
           ) : null}
 
           {error ? <div className="error">{error}</div> : null}

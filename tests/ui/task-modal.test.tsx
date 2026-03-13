@@ -30,3 +30,19 @@ test("task modal preserves input when instances refresh while open", () => {
   const updated = getByLabelText("Message") as HTMLTextAreaElement;
   expect(updated.value).toBe("hello");
 });
+
+test("task modal supports probe and bundle install actions", () => {
+  const { getByLabelText, getByText } = render(
+    <TaskModal open={true} onClose={() => {}} instances={[baseInstance]} />,
+  );
+
+  const actionSelect = getByLabelText("Action") as HTMLSelectElement;
+
+  fireEvent.change(actionSelect, { target: { value: "fleet.gateway.probe" } });
+  expect(getByText("无需额外参数。")).toBeTruthy();
+
+  fireEvent.change(actionSelect, { target: { value: "fleet.skill_bundle.install" } });
+  expect(getByLabelText("Bundle ID")).toBeTruthy();
+  expect(getByLabelText("Bundle Name")).toBeTruthy();
+  expect(getByLabelText("Bundle SHA256")).toBeTruthy();
+});

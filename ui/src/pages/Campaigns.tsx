@@ -1,0 +1,428 @@
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { createApiClient } from "../api/client";
+import type { CampaignItem } from "../types";
+import { usePolling } from "../hooks/usePolling.js";
+
+export default function CampaignsPage() {
+  const api = useMemo(() => createApiClient(), []);
+  const [items, setItems] = useState<CampaignItem[]>([]);
+  const [name, setName] = useState("");
+  const [selector, setSelector] = useState("biz.openclaw.io/");
+  const [action, setAction] = useState("skills.status");
+  const [payloadRaw, setPayloadRaw] = useState("{}");
+  const [gateRaw, setGateRaw] = useState("{}");
+  const [rolloutRaw, setRolloutRaw] = useState("{}");
+  const [expiresAt, setExpiresAt] = useState("");
+  const [editing, setEditing] = useState<
+    Record<
+      string,
+      {
+        name: string;
+        selector: string;
+        action: string;
+        payloadRaw: string;
+        gateRaw: string;
+        rolloutRaw: string;
+        expiresAt: string;
+      }
+    >
+  >({});
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    const data = await api.listCampaigns();
+    setItems(data);
+  }, [api]);
+
+  useEffect(() => {
+    let active = true;
+    async function run() {
+      setError(null);
+      try {
+        await load();
+      } catch (err) {
+        if (!active) return;
+        setError(err instanceof Error ? err.message : String(err));
+      }
+    }
+    run();
+    return () => {
+      active = false;
+    };
+  }, [load]);
+
+  usePolling(load, 5000, true);
+
+  function parseJsonObject(raw: string, label: string): Record<string, unknown> {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      return {};
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch {
+      throw new Error(`${label} 不是合法 JSON`);
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error(`${label} 必须是 JSON object`);
+    }
+    return parsed as Record<string, unknown>;
+  }
+
+  async function handleCreate(event: React.FormEvent) {
+    event.preventDefault();
+    if (!name.trim() || !selector.trim() || !action.trim()) {
+      setError("name/selector/action 不能为空");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const payload = parseJsonObject(payloadRaw, "payload");
+      const gate = parseJsonObject(gateRaw, "gate");
+      const rollout = parseJsonObject(rolloutRaw, "rollout");
+      await api.createCampaign({
+        name: name.trim(),
+        selector: selector.trim(),
+        action: action.trim(),
+        payload,
+        gate,
+        rollout,
+        expires_at: expiresAt.trim() || undefined,
+      });
+      setName("");
+      setPayloadRaw("{}");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function startEdit(c: CampaignItem) {
+    setEditing((prev) => ({
+      ...prev,
+      [c.id]: {
+        name: c.name,
+        selector: c.selector,
+        action: c.action,
+        payloadRaw: JSON.stringify(c.payload ?? {}, null, 2),
+        gateRaw: JSON.stringify(c.gate ?? {}, null, 2),
+        rolloutRaw: JSON.stringify(c.rollout ?? {}, null, 2),
+        expiresAt: c.expires_at ?? "",
+      },
+    }));
+  }
+
+  function cancelEdit(id: string) {
+    setEditing((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }
+
+  async function saveEdit(id: string) {
+    const draft = editing[id];
+    if (!draft) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const payload = parseJsonObject(draft.payloadRaw, "payload");
+      const gate = parseJsonObject(draft.gateRaw, "gate");
+      const rollout = parseJsonObject(draft.rolloutRaw, "rollout");
+      await api.patchCampaign(id, {
+        name: draft.name.trim() || undefined,
+        selector: draft.selector.trim() || undefined,
+        action: draft.action.trim() || undefined,
+        payload,
+        gate,
+        rollout,
+        expires_at: draft.expiresAt.trim() || undefined,
+      });
+      cancelEdit(id);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function closeCampaign(id: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.closeCampaign(id);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="page">
+      <header className="page-header">
+        <div>
+          <h1>Campaigns</h1>
+          <p>按 selector fan-out 执行任务（动态成员，best-effort）。</p>
+        </div>
+      </header>
+
+      {error ? <div className="error">{error}</div> : null}
+
+      <div className="card stack">
+        <div className="section-title">创建 Campaign</div>
+        <form className="stack" onSubmit={handleCreate}>
+          <div className="grid-two">
+            <label>
+              Name
+              <input value={name} onChange={(event) => setName(event.target.value)} />
+            </label>
+            <label>
+              Selector
+              <input value={selector} onChange={(event) => setSelector(event.target.value)} />
+            </label>
+            <label>
+              Action
+              <select value={action} onChange={(event) => setAction(event.target.value)}>
+                <option value="skills.status">skills.status</option>
+                <option value="fleet.gateway.probe">fleet.gateway.probe</option>
+                <option value="fleet.skill_bundle.install">fleet.skill_bundle.install</option>
+                <option value="skills.update">skills.update</option>
+                <option value="skills.install">skills.install</option>
+                <option value="config.patch">config.patch</option>
+                <option value="memory.replace">memory.replace</option>
+                <option value="session.reset">session.reset</option>
+                <option value="agent.run">agent.run</option>
+              </select>
+            </label>
+            <label>
+              Expires At (ISO, 可选)
+              <input
+                value={expiresAt}
+                onChange={(event) => setExpiresAt(event.target.value)}
+                placeholder="2026-12-31T00:00:00.000Z"
+              />
+            </label>
+          </div>
+          <div className="grid-two">
+            <label>
+              Payload (JSON object)
+              <textarea value={payloadRaw} onChange={(event) => setPayloadRaw(event.target.value)} />
+            </label>
+            <div className="stack">
+              <label>
+                Gate (JSON object)
+                <textarea value={gateRaw} onChange={(event) => setGateRaw(event.target.value)} />
+              </label>
+              <label>
+                Rollout (JSON object)
+                <textarea value={rolloutRaw} onChange={(event) => setRolloutRaw(event.target.value)} />
+              </label>
+            </div>
+          </div>
+          <div className="row-actions">
+            <button type="submit" disabled={busy}>
+              {busy ? "创建中..." : "创建"}
+            </button>
+            <button type="button" className="ghost" disabled={busy} onClick={load}>
+              刷新列表
+            </button>
+            <div className="hint">
+              Gate v0.1 常用：<span className="mono">{`{"minVersion":"0000.0.0"}`}</span>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div className="card">
+        <div className="section-title">Campaigns</div>
+        <div className="table">
+          <div
+            className="table-row header"
+            style={{
+              gridTemplateColumns:
+                "minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr)",
+            }}
+          >
+            <div>Name</div>
+            <div>Status</div>
+            <div>Selector / Action</div>
+            <div>Generation</div>
+            <div>Actions</div>
+          </div>
+          {items.map((c) => {
+            const draft = editing[c.id];
+            const isEditing = Boolean(draft);
+            return (
+              <div
+                key={c.id}
+                className="table-row"
+                style={{
+                  gridTemplateColumns:
+                    "minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr)",
+                }}
+              >
+                <div className="stack">
+                  {isEditing ? (
+                    <input
+                      className="inline-input"
+                      value={draft!.name}
+                      onChange={(event) =>
+                        setEditing((prev) => ({
+                          ...prev,
+                          [c.id]: { ...prev[c.id], name: event.target.value },
+                        }))
+                      }
+                    />
+                  ) : (
+                    <div className="strong">{c.name}</div>
+                  )}
+                  <div className="muted mono small">{c.id}</div>
+                </div>
+                <div>
+                  <span className={`badge ${c.status === "open" ? "ok" : "warn"}`}>{c.status}</span>
+                </div>
+                <div className="stack">
+                  {isEditing ? (
+                    <>
+                      <input
+                        className="inline-input"
+                        value={draft!.selector}
+                        onChange={(event) =>
+                          setEditing((prev) => ({
+                            ...prev,
+                            [c.id]: { ...prev[c.id], selector: event.target.value },
+                          }))
+                        }
+                      />
+                      <input
+                        className="inline-input"
+                        value={draft!.action}
+                        onChange={(event) =>
+                          setEditing((prev) => ({
+                            ...prev,
+                            [c.id]: { ...prev[c.id], action: event.target.value },
+                          }))
+                        }
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <div className="mono">{c.selector}</div>
+                      <div className="muted mono small">{c.action}</div>
+                    </>
+                  )}
+                </div>
+                <div className="mono">{c.generation}</div>
+                <div className="row-actions">
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={() => {
+                      window.location.hash = `#/events?campaign_id=${c.id}`;
+                    }}
+                  >
+                    Events
+                  </button>
+                  {c.status === "open" ? (
+                    <button type="button" className="ghost" disabled={busy} onClick={() => closeCampaign(c.id)}>
+                      Close
+                    </button>
+                  ) : null}
+                  {isEditing ? (
+                    <>
+                      <button type="button" disabled={busy} onClick={() => saveEdit(c.id)}>
+                        保存
+                      </button>
+                      <button type="button" className="ghost" disabled={busy} onClick={() => cancelEdit(c.id)}>
+                        取消
+                      </button>
+                    </>
+                  ) : (
+                    <button type="button" className="ghost" disabled={busy} onClick={() => startEdit(c)}>
+                      编辑
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {items.length === 0 ? <div className="empty">暂无 Campaign。</div> : null}
+        </div>
+      </div>
+
+      {Object.keys(editing).length ? (
+        <div className="card">
+          <div className="section-title">Edit JSON (Payload / Gate / Rollout)</div>
+          <div className="hint">保存将触发 `PATCH /v1/campaigns/:id`（action/payload 变化会递增 generation）。</div>
+          <div className="stack">
+            {Object.entries(editing).map(([id, draft]) => (
+              <div key={id} className="card stack" style={{ background: "transparent", boxShadow: "none", padding: 0 }}>
+                <div className="muted mono small">{id}</div>
+                <div className="grid-two">
+                  <label>
+                    Payload
+                    <textarea
+                      value={draft.payloadRaw}
+                      onChange={(event) =>
+                        setEditing((prev) => ({
+                          ...prev,
+                          [id]: { ...prev[id], payloadRaw: event.target.value },
+                        }))
+                      }
+                    />
+                  </label>
+                  <div className="stack">
+                    <label>
+                      Gate
+                      <textarea
+                        value={draft.gateRaw}
+                        onChange={(event) =>
+                          setEditing((prev) => ({
+                            ...prev,
+                            [id]: { ...prev[id], gateRaw: event.target.value },
+                          }))
+                        }
+                      />
+                    </label>
+                    <label>
+                      Rollout
+                      <textarea
+                        value={draft.rolloutRaw}
+                        onChange={(event) =>
+                          setEditing((prev) => ({
+                            ...prev,
+                            [id]: { ...prev[id], rolloutRaw: event.target.value },
+                          }))
+                        }
+                      />
+                    </label>
+                    <label>
+                      Expires At (ISO)
+                      <input
+                        value={draft.expiresAt}
+                        onChange={(event) =>
+                          setEditing((prev) => ({
+                            ...prev,
+                            [id]: { ...prev[id], expiresAt: event.target.value },
+                          }))
+                        }
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}

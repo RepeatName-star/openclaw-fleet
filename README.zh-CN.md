@@ -119,6 +119,11 @@ flowchart TB
   - 任务列表与详情（attempt/error）
   - 技能快照与启停
   - Memory/Persona 编辑器
+  - 标签管理（实例业务标签）
+  - 分组管理（命名 selector）+ matches 预览
+  - Campaign 管理（创建/更新/关闭）
+  - 事件流（筛选/导出 JSONL/CSV）+ artifact 查看
+  - Skill Bundle（上传/列表/下载）+ 安装辅助（task/campaign）
   - 实例 OpenClaw 控制台链接（`control_ui_url`）
 
 ## 快速开始（单机）
