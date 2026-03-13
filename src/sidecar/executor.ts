@@ -1,3 +1,5 @@
+import os from "node:os";
+import path from "node:path";
 import type {
   ConfigGetParams,
   ConfigPatchParams,
@@ -10,6 +12,7 @@ import type {
   SkillsStatusParams,
   AgentRunParams,
 } from "./providers/types.js";
+import { installSkillBundle } from "./skill-bundles/install.js";
 
 type Task = {
   id: string;
@@ -32,15 +35,47 @@ type ExecutorResult = {
 type ExecutorOptions = {
   provider: SidecarProvider;
   state: ExecutorState;
+  controlPlane?: {
+    downloadSkillBundle: (deviceToken: string, bundleId: string) => Promise<ArrayBuffer>;
+  };
+  deviceToken?: string;
+  skillsDir?: string;
 };
 
 export function createExecutor(options: ExecutorOptions) {
-  const { provider, state } = options;
+  const { provider, state, controlPlane, deviceToken } = options;
+  const skillsDir =
+    options.skillsDir ?? path.join(os.homedir(), ".openclaw-fleet", "skills");
 
   async function dispatch(task: Task) {
     switch (task.action) {
       case "fleet.gateway.probe":
         return provider.gatewayProbe(task.payload as GatewayProbeParams);
+      case "fleet.skill_bundle.install": {
+        if (!controlPlane || !deviceToken) {
+          throw new Error("skill bundle install requires controlPlane and deviceToken");
+        }
+        const bundleId = String(task.payload?.bundleId ?? "");
+        const bundleName = String(task.payload?.name ?? "");
+        const sha256 = String(task.payload?.sha256 ?? "");
+        if (!bundleId || !bundleName || !sha256) {
+          throw new Error("invalid payload");
+        }
+        await installSkillBundle({
+          download: () => controlPlane.downloadSkillBundle(deviceToken, bundleId),
+          expectedSha256: sha256,
+          bundleName,
+          skillsRootDir: skillsDir,
+          configGet: () => provider.configGet({}),
+          configPatch: (raw, baseHash) =>
+            provider.configPatch({
+              raw,
+              baseHash,
+              note: `fleet.skill_bundle.install:${bundleId}`,
+            }),
+        });
+        return;
+      }
       case "config.get":
         return provider.configGet(task.payload as ConfigGetParams);
       case "config.patch":
