@@ -1,5 +1,7 @@
 import type {
   AgentRunParams,
+  ConfigGetParams,
+  ConfigGetResult,
   ConfigPatchParams,
   GatewayProbeParams,
   GatewayProbeResult,
@@ -54,6 +56,9 @@ export function createGenericHttpProvider(options: GenericProviderOptions): Side
         return { gateway_reachable: reachable, openclaw_version: version };
       }
       return { gateway_reachable: reachable };
+    },
+    async configGet(params: ConfigGetParams): Promise<ConfigGetResult> {
+      return postJson("/config/get", params) as Promise<ConfigGetResult>;
     },
     async configPatch(params: ConfigPatchParams) {
       await post("/config/patch", params);

@@ -12,3 +12,10 @@ test("openclaw provider maps memory replace", async () => {
   await provider.memoryReplace({ agentId: "main", content: "x" });
   expect(calls.map((c) => c.method)).toEqual(["agents.files.set", "sessions.reset"]);
 });
+
+test("openclaw provider supports config.get", async () => {
+  const gateway = { request: async () => ({ baseHash: "h1" }) } as any;
+  const provider = createOpenClawProvider({ gateway });
+  const res = await provider.configGet({});
+  expect((res as any).baseHash).toBe("h1");
+});

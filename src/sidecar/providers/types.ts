@@ -6,6 +6,9 @@ export type ConfigPatchParams = {
   restartDelayMs?: number;
 };
 
+export type ConfigGetParams = Record<string, never>;
+export type ConfigGetResult = { baseHash?: string } & Record<string, unknown>;
+
 export type SkillsInstallParams = {
   name: string;
   installId: string;
@@ -46,6 +49,7 @@ export type AgentRunParams = {
 
 export interface SidecarProvider {
   gatewayProbe(params: GatewayProbeParams): Promise<GatewayProbeResult>;
+  configGet(params: ConfigGetParams): Promise<ConfigGetResult>;
   configPatch(params: ConfigPatchParams): Promise<void>;
   skillsInstall(params: SkillsInstallParams): Promise<void>;
   skillsUpdate(params: SkillsUpdateParams): Promise<void>;

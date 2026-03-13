@@ -1,4 +1,5 @@
 import type {
+  ConfigGetParams,
   ConfigPatchParams,
   GatewayProbeParams,
   MemoryReplaceParams,
@@ -40,6 +41,8 @@ export function createExecutor(options: ExecutorOptions) {
     switch (task.action) {
       case "fleet.gateway.probe":
         return provider.gatewayProbe(task.payload as GatewayProbeParams);
+      case "config.get":
+        return provider.configGet(task.payload as ConfigGetParams);
       case "config.patch":
         return provider.configPatch(task.payload as ConfigPatchParams);
       case "skills.install":
@@ -75,7 +78,11 @@ export function createExecutor(options: ExecutorOptions) {
         const result = await dispatch(task);
         state.executed[task.id] = true;
         processed += 1;
-        if (task.action === "skills.status" || task.action === "fleet.gateway.probe") {
+        if (
+          task.action === "skills.status" ||
+          task.action === "fleet.gateway.probe" ||
+          task.action === "config.get"
+        ) {
           results[task.id] = result;
         }
       } catch (err) {
