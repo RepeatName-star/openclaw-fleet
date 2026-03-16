@@ -76,7 +76,7 @@ export function createOpenClawProvider(options: OpenClawProviderOptions): Sideca
         sessionKey: params.sessionKey,
         idempotencyKey: params.idempotencyKey ?? randomUUID(),
         deliver: false,
-      });
+      }, { expectFinal: true });
     },
   };
 }

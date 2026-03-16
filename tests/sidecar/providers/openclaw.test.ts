@@ -1,4 +1,5 @@
 import { createOpenClawProvider } from "../../../src/sidecar/providers/openclaw.js";
+import { expect, test, vi } from "vitest";
 
 test("openclaw provider maps memory replace", async () => {
   const calls: Array<{ method: string }> = [];
@@ -21,15 +22,25 @@ test("openclaw provider supports config.get", async () => {
 });
 
 test("openclaw provider returns agent.run payload", async () => {
+  const request = vi.fn().mockResolvedValue({
+    runId: "run-1",
+    status: "ok",
+    result: { text: "Today is Monday." },
+  });
   const gateway = {
-    request: async () => ({
-      runId: "run-1",
-      status: "ok",
-      result: { text: "Today is Monday." },
-    }),
+    request,
   } as any;
   const provider = createOpenClawProvider({ gateway });
   const res = await provider.agentRun({ agentId: "main", message: "今天周几？" });
+  expect(request).toHaveBeenCalledWith(
+    "agent",
+    expect.objectContaining({
+      message: "今天周几？",
+      agentId: "main",
+      deliver: false,
+    }),
+    { expectFinal: true },
+  );
   expect(res).toEqual({
     runId: "run-1",
     status: "ok",

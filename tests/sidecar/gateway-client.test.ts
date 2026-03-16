@@ -159,6 +159,70 @@ test("gateway client rejects with raw error payload", async () => {
   client.close();
 });
 
+test("gateway client waits for final response when expectFinal is enabled", async () => {
+  const ws = new FakeWebSocket();
+  const client = createGatewayClient({
+    url: "ws://test",
+    token: "t",
+    wsFactory: () => ws as any,
+  });
+
+  ws.emit("open");
+  emitChallenge(ws);
+  respondToLastRequest(ws, true);
+
+  const pending = client.request(
+    "agent",
+    { message: "今天周几？" },
+    { expectFinal: true },
+  );
+  await Promise.resolve();
+  const last = ws.sent[ws.sent.length - 1];
+  const frame = JSON.parse(last);
+
+  let settled = false;
+  pending.then(() => {
+    settled = true;
+  });
+
+  ws.emit(
+    "message",
+    Buffer.from(
+      JSON.stringify({
+        type: "res",
+        id: frame.id,
+        ok: true,
+        payload: { runId: "run-1", status: "accepted", acceptedAt: 1 },
+      }),
+    ),
+  );
+  await Promise.resolve();
+  expect(settled).toBe(false);
+
+  ws.emit(
+    "message",
+    Buffer.from(
+      JSON.stringify({
+        type: "res",
+        id: frame.id,
+        ok: true,
+        payload: {
+          runId: "run-1",
+          status: "ok",
+          result: { payloads: [{ text: "今天周日。" }] },
+        },
+      }),
+    ),
+  );
+
+  await expect(pending).resolves.toEqual({
+    runId: "run-1",
+    status: "ok",
+    result: { payloads: [{ text: "今天周日。" }] },
+  });
+  client.close();
+});
+
 test("gateway client reconnects after close", async () => {
   vi.useFakeTimers();
   const sockets: FakeWebSocket[] = [];
