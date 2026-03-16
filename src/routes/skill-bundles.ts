@@ -23,6 +23,10 @@ function buildDownloadFileName(name: string, format: string) {
   return safeBase.endsWith(suffix) ? safeBase : `${safeBase}${suffix}`;
 }
 
+async function deleteBundle(pool: Pool, id: string) {
+  return pool.query("delete from skill_bundles where id = $1 returning id", [id]);
+}
+
 export async function registerSkillBundleRoutes(app: FastifyInstance, opts: SkillBundlesRoutesOptions) {
   app.get("/v1/skill-bundles", async (_req, reply) => {
     if (!opts.pool) {
@@ -104,7 +108,21 @@ export async function registerSkillBundleRoutes(app: FastifyInstance, opts: Skil
       return;
     }
     const { id } = request.params as { id: string };
-    const res = await opts.pool.query("delete from skill_bundles where id = $1 returning id", [id]);
+    const res = await deleteBundle(opts.pool, id);
+    if (!res.rowCount) {
+      reply.code(404).send({ error: "not found" });
+      return;
+    }
+    reply.send({ ok: true });
+  });
+
+  app.post("/v1/skill-bundles/:id/delete", async (request, reply) => {
+    if (!opts.pool) {
+      reply.code(500).send({ error: "server not configured" });
+      return;
+    }
+    const { id } = request.params as { id: string };
+    const res = await deleteBundle(opts.pool, id);
     if (!res.rowCount) {
       reply.code(404).send({ error: "not found" });
       return;

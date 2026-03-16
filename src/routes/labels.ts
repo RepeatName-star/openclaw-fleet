@@ -12,6 +12,10 @@ const DeleteLabelQuerySchema = z.object({
   key: z.string().min(1),
 });
 
+const DeleteLabelBodySchema = z.object({
+  key: z.string().min(1),
+});
+
 type LabelsRoutesOptions = {
   pool?: Pool;
 };
@@ -146,5 +150,15 @@ export async function registerLabelsRoutes(app: FastifyInstance, opts: LabelsRou
   app.delete("/v1/instances/:id/labels/:key", async (request, reply) => {
     const { id, key } = request.params as { id: string; key: string };
     await handleDelete(id, key, reply);
+  });
+
+  app.post("/v1/instances/:id/labels/delete", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsed = DeleteLabelBodySchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      reply.code(400).send({ error: "invalid payload" });
+      return;
+    }
+    await handleDelete(id, parsed.data.key, reply);
   });
 }

@@ -62,3 +62,25 @@ test("DELETE /v1/skill-bundles/:id removes the bundle", async () => {
   ]);
   expect(remaining.rowCount).toBe(0);
 });
+
+test("POST /v1/skill-bundles/:id/delete removes the bundle", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+  const pool = createTestPool(db);
+  const created = await pool.query(
+    "insert into skill_bundles (name, sha256, size_bytes, content) values ($1,$2,$3,$4) returning id",
+    ["demo-skill", "00".repeat(32), 3, Buffer.from([1, 2, 3])],
+  );
+  const app = await buildServer({ pool });
+
+  const res = await app.inject({
+    method: "POST",
+    url: `/v1/skill-bundles/${created.rows[0].id}/delete`,
+  });
+  expect(res.statusCode).toBe(200);
+
+  const remaining = await pool.query("select 1 from skill_bundles where id = $1", [
+    created.rows[0].id,
+  ]);
+  expect(remaining.rowCount).toBe(0);
+});
