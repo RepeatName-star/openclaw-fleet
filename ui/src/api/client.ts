@@ -90,10 +90,6 @@ export type ApiClient = {
 export function createApiClient(baseUrl = "", fetcher: Fetcher = fetch): ApiClient {
   const prefix = baseUrl.replace(/\/$/, "");
 
-  function isNetworkError(err: unknown) {
-    return err instanceof TypeError;
-  }
-
   async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const res = await fetcher(`${prefix}${path}`, init);
     if (!res.ok) {
@@ -181,21 +177,11 @@ export function createApiClient(baseUrl = "", fetcher: Fetcher = fetch): ApiClie
       });
     },
     async deleteInstanceLabel(instanceId: string, key: string) {
-      const encoded = encodeURIComponent(key);
-      try {
-        await request<{ ok: true }>(`/v1/instances/${instanceId}/labels?key=${encoded}`, {
-          method: "DELETE",
-        });
-      } catch (err) {
-        if (!isNetworkError(err)) {
-          throw err;
-        }
-        await request<{ ok: true }>(`/v1/instances/${instanceId}/labels/delete`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ key }),
-        });
-      }
+      await request<{ ok: true }>(`/v1/instances/${instanceId}/labels/delete`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ key }),
+      });
     },
 
     async listGroups() {
@@ -311,14 +297,7 @@ export function createApiClient(baseUrl = "", fetcher: Fetcher = fetch): ApiClie
       return requestArrayBuffer(`/v1/skill-bundles/${id}/download`);
     },
     async deleteSkillBundle(id: string) {
-      try {
-        await request<{ ok: true }>(`/v1/skill-bundles/${id}`, { method: "DELETE" });
-      } catch (err) {
-        if (!isNetworkError(err)) {
-          throw err;
-        }
-        await request<{ ok: true }>(`/v1/skill-bundles/${id}/delete`, { method: "POST" });
-      }
+      await request<{ ok: true }>(`/v1/skill-bundles/${id}/delete`, { method: "POST" });
     },
   };
 }

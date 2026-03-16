@@ -44,7 +44,7 @@ test("skill bundles page can delete a bundle from the UI", async () => {
         ],
       });
     }
-    if (url === "/v1/skill-bundles/b-1" && init?.method === "DELETE") {
+    if (url === "/v1/skill-bundles/b-1/delete" && init?.method === "POST") {
       return jsonResponse({ ok: true });
     }
     throw new Error(`unexpected request: ${url} ${init?.method ?? "GET"}`);
@@ -58,6 +58,6 @@ test("skill bundles page can delete a bundle from the UI", async () => {
   fireEvent.click(await screen.findByRole("button", { name: /删除 bundle/i }));
 
   await waitFor(() => {
-    expect(fetchMock).toHaveBeenCalledWith("/v1/skill-bundles/b-1", expect.objectContaining({ method: "DELETE" }));
+    expect(fetchMock).toHaveBeenCalledWith("/v1/skill-bundles/b-1/delete", expect.objectContaining({ method: "POST" }));
   });
 });

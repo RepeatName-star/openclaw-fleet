@@ -29,7 +29,7 @@ test("UI API client exposes v0.1 bulk management methods", () => {
   expect(typeof (api as any).deleteSkillBundle).toBe("function");
 });
 
-test("UI API client tolerates empty successful delete responses", async () => {
+test("UI API client uses POST alias for label and bundle deletion", async () => {
   const fetcher = vi.fn(async () => new Response(null, { status: 200 }) as any);
   const api = createApiClient("", fetcher as any);
 
@@ -38,54 +38,12 @@ test("UI API client tolerates empty successful delete responses", async () => {
 
   expect(fetcher).toHaveBeenNthCalledWith(
     1,
-    "/v1/instances/i-1/labels?key=biz.openclaw.io%2Fmaster",
-    expect.objectContaining({ method: "DELETE" }),
-  );
-  expect(fetcher).toHaveBeenNthCalledWith(
-    2,
-    "/v1/skill-bundles/b-1",
-    expect.objectContaining({ method: "DELETE" }),
-  );
-});
-
-test("UI API client falls back to POST for label deletion on network-level DELETE failure", async () => {
-  const fetcher = vi
-    .fn()
-    .mockRejectedValueOnce(new TypeError("Failed to fetch"))
-    .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }) as any);
-  const api = createApiClient("", fetcher as any);
-
-  await expect(api.deleteInstanceLabel("i-1", "biz.openclaw.io/master")).resolves.toBeUndefined();
-
-  expect(fetcher).toHaveBeenNthCalledWith(
-    1,
-    "/v1/instances/i-1/labels?key=biz.openclaw.io%2Fmaster",
-    expect.objectContaining({ method: "DELETE" }),
-  );
-  expect(fetcher).toHaveBeenNthCalledWith(
-    2,
     "/v1/instances/i-1/labels/delete",
     expect.objectContaining({
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ key: "biz.openclaw.io/master" }),
     }),
-  );
-});
-
-test("UI API client falls back to POST for bundle deletion on network-level DELETE failure", async () => {
-  const fetcher = vi
-    .fn()
-    .mockRejectedValueOnce(new TypeError("Failed to fetch"))
-    .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }) as any);
-  const api = createApiClient("", fetcher as any);
-
-  await expect(api.deleteSkillBundle("b-1")).resolves.toBeUndefined();
-
-  expect(fetcher).toHaveBeenNthCalledWith(
-    1,
-    "/v1/skill-bundles/b-1",
-    expect.objectContaining({ method: "DELETE" }),
   );
   expect(fetcher).toHaveBeenNthCalledWith(
     2,
