@@ -56,5 +56,5 @@ export interface SidecarProvider {
   skillsStatus(params: SkillsStatusParams): Promise<unknown>;
   memoryReplace(params: MemoryReplaceParams): Promise<void>;
   sessionReset(params: SessionResetParams): Promise<void>;
-  agentRun(params: AgentRunParams): Promise<void>;
+  agentRun(params: AgentRunParams): Promise<unknown>;
 }

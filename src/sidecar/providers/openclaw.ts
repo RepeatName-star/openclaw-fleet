@@ -70,7 +70,7 @@ export function createOpenClawProvider(options: OpenClawProviderOptions): Sideca
       await gateway.request("sessions.reset", params);
     },
     async agentRun(params: AgentRunParams) {
-      await gateway.request("agent", {
+      return gateway.request("agent", {
         message: params.message,
         agentId: params.agentId,
         sessionKey: params.sessionKey,

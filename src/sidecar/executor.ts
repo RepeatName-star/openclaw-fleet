@@ -113,11 +113,7 @@ export function createExecutor(options: ExecutorOptions) {
         const result = await dispatch(task);
         state.executed[task.id] = true;
         processed += 1;
-        if (
-          task.action === "skills.status" ||
-          task.action === "fleet.gateway.probe" ||
-          task.action === "config.get"
-        ) {
+        if (result !== undefined) {
           results[task.id] = result;
         }
       } catch (err) {
