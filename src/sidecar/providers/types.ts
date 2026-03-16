@@ -7,7 +7,7 @@ export type ConfigPatchParams = {
 };
 
 export type ConfigGetParams = Record<string, never>;
-export type ConfigGetResult = { baseHash?: string } & Record<string, unknown>;
+export type ConfigGetResult = { baseHash?: string; hash?: string } & Record<string, unknown>;
 
 export type SkillsInstallParams = {
   name: string;
@@ -45,6 +45,7 @@ export type AgentRunParams = {
   agentId?: string;
   sessionKey?: string;
   idempotencyKey?: string;
+  timeoutMs?: number;
 };
 
 export interface SidecarProvider {
@@ -56,5 +57,5 @@ export interface SidecarProvider {
   skillsStatus(params: SkillsStatusParams): Promise<unknown>;
   memoryReplace(params: MemoryReplaceParams): Promise<void>;
   sessionReset(params: SessionResetParams): Promise<void>;
-  agentRun(params: AgentRunParams): Promise<void>;
+  agentRun(params: AgentRunParams): Promise<unknown>;
 }

@@ -9,6 +9,9 @@
 - 事件回显（Events 导出）与诊断（Artifacts）
 - 远程 Skill Bundle 分发与安装
 
+完整功能矩阵、每个 action 的 payload 与预期效果，见：
+- `docs/usage-v0.1.md`
+
 ---
 
 ## 1. 启动控制面（Control Plane）
@@ -312,6 +315,8 @@ tar -czf my-skill.tar.gz -C /path/to/my-skill .
 
 建议：bundle 内不要再套一层顶级目录（上面的命令会把内容直接打到归档根）。
 
+Fleet 现在会自动拍平“只有一层顶级目录”的归档；但为了减少歧义，仍建议按上面的方式打包。
+
 ### 7.2 上传 bundle
 
 ```bash
@@ -322,7 +327,13 @@ pnpm fleet:cli:ts --base-url http://127.0.0.1:3000 bundles upload \
 
 CLI 会输出 bundle 元信息（包含 `id`、`sha256` 等），后续安装需要用到。
 
-### 7.3 批量安装 bundle（用 Campaign 下发）
+### 7.3 删除 bundle
+
+```bash
+pnpm fleet:cli:ts --base-url http://127.0.0.1:3000 bundles delete <bundleId>
+```
+
+### 7.4 批量安装 bundle（用 Campaign 下发）
 
 安装 action：`fleet.skill_bundle.install`
 
@@ -357,4 +368,3 @@ pnpm fleet:cli:ts --base-url http://127.0.0.1:3000 campaign create \
 - Skill bundle 安装失败：
   - 导出 events，找到 `exec.finished` 的 `artifact_id`，再用 `artifacts get` 看原始错误。
   - 常见原因：`tar` 不存在、sha256 不匹配、`config.patch` 失败（baseHash 过期/网关错误）。
-

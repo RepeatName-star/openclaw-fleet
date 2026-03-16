@@ -260,6 +260,16 @@ export async function runCli(
     writeJsonLine(io, res);
     return 0;
   }
+  if (resource === "bundles" && (sub === "del" || sub === "delete" || sub === "rm")) {
+    const id = rest[0];
+    if (!id) {
+      io.stderr.write("error: bundles delete requires <bundleId>\n");
+      return 2;
+    }
+    const res = await client.deleteSkillBundle(id);
+    writeJsonLine(io, res);
+    return 0;
+  }
 
   io.stderr.write(`error: unknown command: ${parsed.command.join(" ")}\n`);
   return 2;

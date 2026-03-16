@@ -23,6 +23,8 @@ export default function SkillBundlesPage() {
     setInstances(inst);
     if (!selectedId && items.length) {
       setSelectedId(items[0].id);
+    } else if (selectedId && !items.some((item) => item.id === selectedId)) {
+      setSelectedId(items[0]?.id ?? "");
     }
     if (!installInstanceId && inst.length) {
       setInstallInstanceId(inst[0].id);
@@ -133,6 +135,23 @@ export default function SkillBundlesPage() {
       });
       setSuccess(`已创建 Campaign: ${c.id}`);
       window.location.hash = "#/campaigns";
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteSelectedBundle() {
+    if (!selected) return;
+    setBusy(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      await api.deleteSkillBundle(selected.id);
+      setSuccess(`已删除 Bundle: ${selected.name}`);
+      setSelectedId("");
+      await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -278,6 +297,14 @@ export default function SkillBundlesPage() {
             </button>
             <button type="button" className="ghost" disabled={busy} onClick={createInstallCampaign}>
               创建安装 Campaign
+            </button>
+            <button
+              type="button"
+              className="ghost danger"
+              disabled={busy}
+              onClick={deleteSelectedBundle}
+            >
+              删除 bundle
             </button>
             <div className="hint">
               payload: <span className="mono">{`{bundleId,name,sha256}`}</span>

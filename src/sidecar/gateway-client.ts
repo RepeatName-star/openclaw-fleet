@@ -13,7 +13,11 @@ const DEFAULT_PROTOCOL_VERSION = 3;
 const DEFAULT_REQUEST_TIMEOUT_MS = 30000;
 
 export type GatewayClient = {
-  request: (method: string, params?: unknown, opts?: { timeoutMs?: number }) => Promise<unknown>;
+  request: (
+    method: string,
+    params?: unknown,
+    opts?: { timeoutMs?: number; expectFinal?: boolean },
+  ) => Promise<unknown>;
   close: () => void;
   getHelloOk: () => unknown | null;
 };
@@ -78,6 +82,7 @@ type Pending = {
   resolve: (value: unknown) => void;
   reject: (err: Error) => void;
   timer?: NodeJS.Timeout | null;
+  expectFinal?: boolean;
 };
 
 type DeviceAuthPayloadParams = {
@@ -180,6 +185,7 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
         readyResolve?.();
       },
       reject: (err) => readyReject?.(err),
+      expectFinal: false,
     });
     const params = buildConnectParams({
       ...options,
@@ -266,6 +272,10 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
       if (!handler) {
         return;
       }
+      const status = parsed.payload?.status;
+      if (handler.expectFinal && status === "accepted") {
+        return;
+      }
       pending.delete(parsed.id);
       if (handler.timer) {
         clearTimeout(handler.timer);
@@ -339,7 +349,7 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
   function request(
     method: string,
     params?: unknown,
-    opts?: { timeoutMs?: number },
+    opts?: { timeoutMs?: number; expectFinal?: boolean },
   ): Promise<unknown> {
     if (terminalError) {
       return Promise.reject(terminalError);
@@ -358,7 +368,7 @@ export function createGatewayClient(options: GatewayClientOptions): GatewayClien
         }, timeoutMs);
         timer.unref?.();
       }
-      pending.set(id, { resolve, reject, timer });
+      pending.set(id, { resolve, reject, timer, expectFinal: opts?.expectFinal === true });
     });
     const currentReady = ready;
     currentReady

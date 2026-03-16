@@ -49,6 +49,31 @@ function getExtraDirsFromConfigGetResult(cfg: unknown): string[] {
   return extraDirs.filter((v) => typeof v === "string");
 }
 
+function getBaseHashFromConfigGetResult(cfg: unknown): string | undefined {
+  const baseHash = (cfg as any)?.baseHash;
+  if (typeof baseHash === "string" && baseHash.length > 0) {
+    return baseHash;
+  }
+  const hash = (cfg as any)?.hash;
+  if (typeof hash === "string" && hash.length > 0) {
+    return hash;
+  }
+  return undefined;
+}
+
+async function resolveExtractedBundleSourceDir(extractDir: string): Promise<string> {
+  const entries = await fs.readdir(extractDir, { withFileTypes: true });
+  const visibleEntries = entries.filter((entry) => entry.name !== "." && entry.name !== "..");
+  if (
+    visibleEntries.length === 1 &&
+    visibleEntries[0]?.isDirectory() &&
+    !visibleEntries.some((entry) => !entry.isDirectory())
+  ) {
+    return path.join(extractDir, visibleEntries[0].name);
+  }
+  return extractDir;
+}
+
 export async function installSkillBundle(params: {
   download: () => Promise<ArrayBuffer>;
   expectedSha256: string;
@@ -80,6 +105,7 @@ export async function installSkillBundle(params: {
 
   // Extract into staging dir first, then rename to destination as a best-effort atomic swap.
   await execFileP("tar", ["-xzf", tarPath, "-C", extractDir]);
+  const sourceDir = await resolveExtractedBundleSourceDir(extractDir);
 
   const destDir = path.join(params.skillsRootDir, params.bundleName);
   const backupDir = `${destDir}.bak-${installId}`;
@@ -89,7 +115,7 @@ export async function installSkillBundle(params: {
       await fs.rename(destDir, backupDir);
       movedExisting = true;
     }
-    await fs.rename(extractDir, destDir);
+    await fs.rename(sourceDir, destDir);
   } catch (err) {
     // Best-effort rollback: if we moved the existing bundle out of the way but failed
     // to put the new one in place, restore the old bundle.
@@ -116,7 +142,7 @@ export async function installSkillBundle(params: {
     null,
     2,
   );
-  await params.configPatch(rawPatch, cfg.baseHash);
+  await params.configPatch(rawPatch, getBaseHashFromConfigGetResult(cfg));
 
   // Only remove the backup after config patch succeeds.
   if (movedExisting) {

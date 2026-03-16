@@ -79,7 +79,7 @@ export function createGenericHttpProvider(options: GenericProviderOptions): Side
       await post("/sessions/reset", params);
     },
     async agentRun(params: AgentRunParams) {
-      await post("/agent/run", params);
+      return postJson("/agent/run", params);
     },
   };
 }

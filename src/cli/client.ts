@@ -57,10 +57,11 @@ export function createFleetClient(opts: { baseUrl: string; fetch?: FetchLike }) 
     upsertInstanceLabel: (instanceId: string, body: unknown) =>
       postJson(`/v1/instances/${instanceId}/labels`, body),
     deleteInstanceLabel: (instanceId: string, key: string) =>
-      deleteJson(`/v1/instances/${instanceId}/labels/${encodeURIComponent(key)}`),
+      deleteJson(`/v1/instances/${instanceId}/labels?key=${encodeURIComponent(key)}`),
 
     getArtifact: (id: string) => getJson(`/v1/artifacts/${id}`),
     exportEvents: (query: string) => fetcher(`${baseUrl}/v1/events/export${query}`),
     uploadSkillBundle: (body: unknown) => postJson("/v1/skill-bundles", body),
+    deleteSkillBundle: (id: string) => deleteJson(`/v1/skill-bundles/${id}`),
   };
 }

@@ -1,6 +1,8 @@
 import { z } from "zod";
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
+import { redactValue } from "../events/redact.js";
+import { insertArtifact, insertEvent } from "../events/store.js";
 
 const TaskSchema = z.object({
   target_type: z.enum(["instance", "group"]),
@@ -13,6 +15,8 @@ const TaskSchema = z.object({
 type TasksAdminOptions = {
   pool?: Pool;
 };
+
+const TASK_EVENT_SENSITIVE_PATHS = [["payload", "message"]];
 
 export async function registerTasksAdminRoutes(app: FastifyInstance, opts: TasksAdminOptions) {
   app.post("/v1/tasks", async (request, reply) => {
@@ -37,6 +41,33 @@ export async function registerTasksAdminRoutes(app: FastifyInstance, opts: Tasks
         parsed.data.expires_at ?? null,
       ],
     );
-    reply.send({ ok: true, id: res.rows[0].id });
+    const taskId = String(res.rows[0].id);
+    const artifact = await insertArtifact(opts.pool, {
+      kind: "task.payload",
+      content: {
+        task_id: taskId,
+        target_type: parsed.data.target_type,
+        target_id: parsed.data.target_id,
+        action: parsed.data.action,
+        payload,
+      },
+    });
+    const redacted = redactValue(
+      {
+        action: parsed.data.action,
+        payload,
+      },
+      { mode: "event", sensitivePaths: TASK_EVENT_SENSITIVE_PATHS },
+    ) as Record<string, unknown>;
+    await insertEvent(opts.pool, {
+      event_type: "exec.queued",
+      instance_id: parsed.data.target_type === "instance" ? parsed.data.target_id : null,
+      artifact_id: artifact.id,
+      payload: {
+        task_id: taskId,
+        ...redacted,
+      },
+    });
+    reply.send({ ok: true, id: taskId });
   });
 }

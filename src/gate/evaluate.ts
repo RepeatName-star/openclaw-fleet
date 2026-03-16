@@ -26,6 +26,7 @@ export type GateBlocked = {
 const TTL_GATEWAY_REACHABLE_MS = 30_000;
 const TTL_VERSION_MS = 24 * 60 * 60_000;
 const TTL_SKILLS_SNAPSHOT_MS = 10 * 60_000;
+const NO_MIN_VERSION = "0000.0.0";
 
 function isFresh(at: Date | null, ttlMs: number, now: Date) {
   if (!at) return false;
@@ -57,12 +58,14 @@ export function evaluateGate(inputs: GateInputs, config: GateConfig, now = new D
     return { ok: false, blocked_reason: "openclaw_version missing/stale", needs_probes: ["gateway"] };
   }
 
-  try {
-    if (compareVersions(inputs.openclaw_version, config.minVersion) < 0) {
-      return { ok: false, blocked_reason: "openclaw_version below minVersion", needs_probes: ["gateway"] };
+  if (config.minVersion !== NO_MIN_VERSION) {
+    try {
+      if (compareVersions(inputs.openclaw_version, config.minVersion) < 0) {
+        return { ok: false, blocked_reason: "openclaw_version below minVersion", needs_probes: ["gateway"] };
+      }
+    } catch {
+      return { ok: false, blocked_reason: "openclaw_version unparseable", needs_probes: ["gateway"] };
     }
-  } catch {
-    return { ok: false, blocked_reason: "openclaw_version unparseable", needs_probes: ["gateway"] };
   }
 
   if (!inputs.skills_snapshot_at) {
@@ -81,4 +84,3 @@ export function evaluateGate(inputs: GateInputs, config: GateConfig, now = new D
 
   return { ok: true };
 }
-

@@ -18,6 +18,8 @@ export type OpenClawProviderOptions = {
   gateway: GatewayClient;
 };
 
+const DEFAULT_AGENT_RUN_TIMEOUT_MS = 5 * 60_000;
+
 export function createOpenClawProvider(options: OpenClawProviderOptions): SidecarProvider {
   const gateway = options.gateway;
 
@@ -31,7 +33,17 @@ export function createOpenClawProvider(options: OpenClawProviderOptions): Sideca
       return { gateway_reachable: false };
     },
     async configGet(params: ConfigGetParams): Promise<ConfigGetResult> {
-      return gateway.request("config.get", params) as Promise<ConfigGetResult>;
+      const result = (await gateway.request("config.get", params)) as ConfigGetResult;
+      if (typeof result?.baseHash === "string" && result.baseHash.length > 0) {
+        return result;
+      }
+      if (typeof result?.hash === "string" && result.hash.length > 0) {
+        return {
+          ...result,
+          baseHash: result.hash,
+        };
+      }
+      return result;
     },
     async configPatch(params: ConfigPatchParams) {
       await gateway.request("config.patch", params);
@@ -60,13 +72,13 @@ export function createOpenClawProvider(options: OpenClawProviderOptions): Sideca
       await gateway.request("sessions.reset", params);
     },
     async agentRun(params: AgentRunParams) {
-      await gateway.request("agent", {
+      return gateway.request("agent", {
         message: params.message,
         agentId: params.agentId,
         sessionKey: params.sessionKey,
         idempotencyKey: params.idempotencyKey ?? randomUUID(),
         deliver: false,
-      });
+      }, { expectFinal: true, timeoutMs: params.timeoutMs ?? DEFAULT_AGENT_RUN_TIMEOUT_MS });
     },
   };
 }

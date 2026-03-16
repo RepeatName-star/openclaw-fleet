@@ -40,3 +40,59 @@ test("POST /v1/instances/:id/labels rejects system prefix", async () => {
   expect(res.statusCode).toBe(400);
 });
 
+test("DELETE /v1/instances/:id/labels?key=... deletes a business label with prefix", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+  const pool = createTestPool(db);
+  const created = await pool.query("insert into instances (name) values ('i-1') returning id");
+  const app = await buildServer({ pool, redis: { set: async () => "OK", get: async () => null } });
+  const instanceId = String(created.rows[0].id);
+
+  await app.inject({
+    method: "POST",
+    url: `/v1/instances/${instanceId}/labels`,
+    payload: { key: "biz.openclaw.io/team", value: "a" },
+  });
+
+  const del = await app.inject({
+    method: "DELETE",
+    url: `/v1/instances/${instanceId}/labels?key=${encodeURIComponent("biz.openclaw.io/team")}`,
+  });
+  expect(del.statusCode).toBe(200);
+
+  const list = await app.inject({
+    method: "GET",
+    url: `/v1/instances/${instanceId}/labels`,
+  });
+  expect(list.statusCode).toBe(200);
+  expect(list.json().items).toEqual([]);
+});
+
+test("POST /v1/instances/:id/labels/delete deletes a business label with prefix", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+  const pool = createTestPool(db);
+  const created = await pool.query("insert into instances (name) values ('i-1') returning id");
+  const app = await buildServer({ pool, redis: { set: async () => "OK", get: async () => null } });
+  const instanceId = String(created.rows[0].id);
+
+  await app.inject({
+    method: "POST",
+    url: `/v1/instances/${instanceId}/labels`,
+    payload: { key: "biz.openclaw.io/team", value: "a" },
+  });
+
+  const del = await app.inject({
+    method: "POST",
+    url: `/v1/instances/${instanceId}/labels/delete`,
+    payload: { key: "biz.openclaw.io/team" },
+  });
+  expect(del.statusCode).toBe(200);
+
+  const list = await app.inject({
+    method: "GET",
+    url: `/v1/instances/${instanceId}/labels`,
+  });
+  expect(list.statusCode).toBe(200);
+  expect(list.json().items).toEqual([]);
+});

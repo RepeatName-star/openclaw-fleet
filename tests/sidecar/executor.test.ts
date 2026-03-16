@@ -20,3 +20,22 @@ test("executor records failure details", async () => {
   expect(res.failed).toBe(1);
   expect(res.errors?.t2).toMatch(/boom/);
 });
+
+test("executor preserves agent.run result for ack", async () => {
+  const state = { executed: {} } as any;
+  const provider = {
+    agentRun: async () => ({
+      runId: "run-1",
+      status: "ok",
+      result: { text: "Today is Monday." },
+    }),
+  } as any;
+  const exec = createExecutor({ provider, state });
+  const res = await exec.run([{ id: "t3", action: "agent.run", payload: { message: "今天周几？" } }]);
+  expect(res.processed).toBe(1);
+  expect(res.results?.t3).toEqual({
+    runId: "run-1",
+    status: "ok",
+    result: { text: "Today is Monday." },
+  });
+});

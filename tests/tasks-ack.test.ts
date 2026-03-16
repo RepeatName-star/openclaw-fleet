@@ -73,6 +73,74 @@ test("POST /v1/tasks/ack stores skills snapshot result", async () => {
   expect(instanceRow.rows[0].skills_snapshot.skills[0].skillKey).toBe("weather");
 });
 
+test("POST /v1/tasks/ack trims agent.run result to final response payloads", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+  const pool = createTestPool(db);
+
+  const created = await pool.query(
+    "insert into instances (name) values ($1) returning id",
+    ["i-1"],
+  );
+  const instanceId = created.rows[0].id as string;
+  const token = await issueDeviceToken(pool, { instanceId, scopes: ["operator.admin"] });
+
+  const task = await pool.query(
+    "insert into tasks (target_type, target_id, action, payload) values ($1, $2, $3, $4) returning id",
+    ["instance", instanceId, "agent.run", { message: "今天周几？" }],
+  );
+  const taskId = task.rows[0].id as string;
+
+  const app = await buildServer({ pool });
+  const res = await app.inject({
+    method: "POST",
+    url: "/v1/tasks/ack",
+    headers: { authorization: `Bearer ${token}` },
+    payload: {
+      task_id: taskId,
+      status: "ok",
+      result: {
+        runId: "run-1",
+        status: "ok",
+        summary: "completed",
+        result: {
+          meta: {
+            agentMeta: {
+              model: "glm-5",
+              usage: { input: 1, output: 2, total: 3 },
+            },
+            durationMs: 1234,
+          },
+          payloads: [{ text: "今天是星期一。", mediaUrl: null }],
+        },
+      },
+    },
+  });
+  expect(res.statusCode).toBe(200);
+
+  const taskRow = await pool.query("select result from tasks where id = $1", [taskId]);
+  expect(taskRow.rows[0].result).toEqual({
+    runId: "run-1",
+    status: "ok",
+    summary: "completed",
+    result: {
+      payloads: [{ text: "今天是星期一。", mediaUrl: null }],
+    },
+  });
+
+  const artifactRow = await pool.query(
+    "select content from artifacts where kind = 'task.result' order by created_at desc limit 1",
+  );
+  expect(artifactRow.rows[0].content.result).toEqual({
+    runId: "run-1",
+    status: "ok",
+    summary: "completed",
+    result: {
+      payloads: [{ text: "今天是星期一。", mediaUrl: null }],
+    },
+  });
+});
+
 test("tasks ack writes gateway facts for fleet.gateway.probe", async () => {
   const db = initTestDb();
   await runMigrations(db);

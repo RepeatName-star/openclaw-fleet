@@ -1,12 +1,91 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createApiClient } from "../api/client";
-import type { CampaignItem } from "../types";
+import type { CampaignItem, GroupItem } from "../types";
 import { usePolling } from "../hooks/usePolling.js";
+
+const ACTION_DOCS: Record<
+  string,
+  {
+    title: string;
+    example: string;
+    note: string;
+  }
+> = {
+  "skills.status": {
+    title: "skills.status payload",
+    example: "{}",
+    note: "读取当前实例的 skills 快照；v0.1 常用为空对象。",
+  },
+  "fleet.gateway.probe": {
+    title: "fleet.gateway.probe payload",
+    example: "{}",
+    note: "探测 gateway 可达性与 OpenClaw 版本；无需额外参数。",
+  },
+  "fleet.skill_bundle.install": {
+    title: "fleet.skill_bundle.install payload",
+    example: JSON.stringify({ bundleId: "<bundleId>", name: "demo-skill", sha256: "<sha256>" }, null, 2),
+    note: "通过控制面分发并安装 tar.gz bundle，name 会作为 ~/.openclaw-fleet/skills 下的目录名。",
+  },
+  "skills.update": {
+    title: "skills.update payload",
+    example: JSON.stringify({ skillKey: "weather", enabled: true, apiKey: "", env: { FOO: "bar" } }, null, 2),
+    note: "更新单个 skill 的启用状态、apiKey 或 env；空字符串表示清空对应值。",
+  },
+  "skills.install": {
+    title: "skills.install payload",
+    example: JSON.stringify({ name: "weather", installId: "<installId>", timeoutMs: 300000 }, null, 2),
+    note: "调用 OpenClaw 原生远程技能安装；installId 为上游安装请求 ID。",
+  },
+  "config.patch": {
+    title: "config.patch payload",
+    example: JSON.stringify(
+      {
+        raw: JSON.stringify(
+          {
+            skills: {
+              load: {
+                extraDirs: ["/path"],
+              },
+            },
+          },
+          null,
+          2,
+        ),
+        baseHash: "<config.get.hash>",
+        note: "fleet update",
+      },
+      null,
+      2,
+    ),
+    note: "raw 必须是字符串形式的 JSON/JSON5 片段；当实例已有配置时必须传入 config.get 返回的 hash 作为 baseHash。",
+  },
+  "memory.replace": {
+    title: "memory.replace payload",
+    example: JSON.stringify({ agentId: "main", content: "# New memory", fileName: "MEMORY.md" }, null, 2),
+    note: "覆盖指定 agent 的 memory 文件，然后重置该 agent 的会话。",
+  },
+  "session.reset": {
+    title: "session.reset payload",
+    example: JSON.stringify({ key: "agent:main:main" }, null, 2),
+    note: "key 必须是 OpenClaw Gateway 识别的 session key；批量执行时只适合所有目标实例都存在同名 session 的场景。",
+  },
+  "agent.run": {
+    title: "agent.run payload",
+    example: JSON.stringify(
+      { message: "Run diagnostics", agentId: "main", sessionKey: "agent:main:main", timeoutMs: 300000 },
+      null,
+      2,
+    ),
+    note: "message 为必填；agentId/sessionKey 不填时由实例自身按默认行为处理。timeoutMs 可选，默认等待最终响应 5 分钟。",
+  },
+};
 
 export default function CampaignsPage() {
   const api = useMemo(() => createApiClient(), []);
   const [items, setItems] = useState<CampaignItem[]>([]);
+  const [groups, setGroups] = useState<GroupItem[]>([]);
   const [name, setName] = useState("");
+  const [groupId, setGroupId] = useState("");
   const [selector, setSelector] = useState("biz.openclaw.io/");
   const [action, setAction] = useState("skills.status");
   const [payloadRaw, setPayloadRaw] = useState("{}");
@@ -31,8 +110,9 @@ export default function CampaignsPage() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const data = await api.listCampaigns();
-    setItems(data);
+    const [campaigns, groupItems] = await Promise.all([api.listCampaigns(), api.listGroups()]);
+    setItems(campaigns);
+    setGroups(groupItems);
   }, [api]);
 
   useEffect(() => {
@@ -53,6 +133,12 @@ export default function CampaignsPage() {
   }, [load]);
 
   usePolling(load, 5000, true);
+
+  const actionDoc = ACTION_DOCS[action] ?? {
+    title: `${action} payload`,
+    example: "{}",
+    note: "当前 action 还没有专门的表单，请按 JSON object 直接填写。",
+  };
 
   function parseJsonObject(raw: string, label: string): Record<string, unknown> {
     const trimmed = raw.trim();
@@ -165,6 +251,17 @@ export default function CampaignsPage() {
     }
   }
 
+  function applyGroupSelector(nextGroupId: string) {
+    setGroupId(nextGroupId);
+    if (!nextGroupId) {
+      return;
+    }
+    const nextGroup = groups.find((item) => item.id === nextGroupId);
+    if (nextGroup) {
+      setSelector(nextGroup.selector);
+    }
+  }
+
   return (
     <section className="page">
       <header className="page-header">
@@ -183,6 +280,17 @@ export default function CampaignsPage() {
             <label>
               Name
               <input value={name} onChange={(event) => setName(event.target.value)} />
+            </label>
+            <label>
+              Group
+              <select value={groupId} onChange={(event) => applyGroupSelector(event.target.value)}>
+                <option value="">(manual selector)</option>
+                {groups.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
+                ))}
+              </select>
             </label>
             <label>
               Selector
@@ -237,6 +345,11 @@ export default function CampaignsPage() {
             <div className="hint">
               Gate v0.1 常用：<span className="mono">{`{"minVersion":"0000.0.0"}`}</span>
             </div>
+          </div>
+          <div className="card stack">
+            <div className="section-title">{actionDoc.title}</div>
+            <pre className="code-block">{actionDoc.example}</pre>
+            <div className="hint">{actionDoc.note}</div>
           </div>
         </form>
       </div>

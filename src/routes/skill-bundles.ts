@@ -17,6 +17,16 @@ function sha256Hex(buf: Buffer) {
   return createHash("sha256").update(buf).digest("hex");
 }
 
+function buildDownloadFileName(name: string, format: string) {
+  const safeBase = name.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "bundle";
+  const suffix = format === "tar.gz" ? ".tar.gz" : "";
+  return safeBase.endsWith(suffix) ? safeBase : `${safeBase}${suffix}`;
+}
+
+async function deleteBundle(pool: Pool, id: string) {
+  return pool.query("delete from skill_bundles where id = $1 returning id", [id]);
+}
+
 export async function registerSkillBundleRoutes(app: FastifyInstance, opts: SkillBundlesRoutesOptions) {
   app.get("/v1/skill-bundles", async (_req, reply) => {
     if (!opts.pool) {
@@ -75,12 +85,48 @@ export async function registerSkillBundleRoutes(app: FastifyInstance, opts: Skil
       return;
     }
     const { id } = request.params as { id: string };
-    const res = await opts.pool.query("select content from skill_bundles where id = $1", [id]);
+    const res = await opts.pool.query(
+      "select name, format, content from skill_bundles where id = $1",
+      [id],
+    );
     if (!res.rowCount) {
       reply.code(404).send({ error: "not found" });
       return;
     }
+    const name = String(res.rows[0].name ?? "bundle");
+    const format = String(res.rows[0].format ?? "tar.gz");
+    reply.header(
+      "content-disposition",
+      `attachment; filename="${buildDownloadFileName(name, format)}"`,
+    );
     reply.type("application/gzip").send(res.rows[0].content as Buffer);
   });
-}
 
+  app.delete("/v1/skill-bundles/:id", async (request, reply) => {
+    if (!opts.pool) {
+      reply.code(500).send({ error: "server not configured" });
+      return;
+    }
+    const { id } = request.params as { id: string };
+    const res = await deleteBundle(opts.pool, id);
+    if (!res.rowCount) {
+      reply.code(404).send({ error: "not found" });
+      return;
+    }
+    reply.send({ ok: true });
+  });
+
+  app.post("/v1/skill-bundles/:id/delete", async (request, reply) => {
+    if (!opts.pool) {
+      reply.code(500).send({ error: "server not configured" });
+      return;
+    }
+    const { id } = request.params as { id: string };
+    const res = await deleteBundle(opts.pool, id);
+    if (!res.rowCount) {
+      reply.code(404).send({ error: "not found" });
+      return;
+    }
+    reply.send({ ok: true });
+  });
+}

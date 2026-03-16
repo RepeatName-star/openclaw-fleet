@@ -51,7 +51,7 @@ test("cli: labels set calls POST /v1/instances/:id/labels", async () => {
   });
 });
 
-test("cli: labels del calls DELETE /v1/instances/:id/labels/:key", async () => {
+test("cli: labels del calls DELETE /v1/instances/:id/labels?key=...", async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const { io } = createMockIo();
   const code = await runCli(
@@ -64,7 +64,7 @@ test("cli: labels del calls DELETE /v1/instances/:id/labels/:key", async () => {
     },
   );
   expect(code).toBe(0);
-  expect(calls[0].url).toBe("http://x/v1/instances/i1/labels/biz.openclaw.io%2Fteam");
+  expect(calls[0].url).toBe("http://x/v1/instances/i1/labels?key=biz.openclaw.io%2Fteam");
   expect(calls[0].init?.method).toBe("DELETE");
 });
 
@@ -120,4 +120,3 @@ test("cli: groups matches calls /v1/groups/:id/matches", async () => {
   expect(code).toBe(0);
   expect(calls[0].url).toBe("http://x/v1/groups/g1/matches");
 });
-

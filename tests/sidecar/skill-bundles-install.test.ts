@@ -25,7 +25,7 @@ test("fleet.skill_bundle.install downloads and extracts into ~/.openclaw-fleet/s
   let patched: any = null;
 
   const provider = {
-    configGet: async () => ({ baseHash: "h1" }),
+    configGet: async () => ({ hash: "h1" }),
     configPatch: async (params: any) => {
       patched = params;
     },
@@ -51,6 +51,41 @@ test("fleet.skill_bundle.install downloads and extracts into ~/.openclaw-fleet/s
   expect(patched.baseHash).toBe("h1");
   expect(String(patched.raw)).toContain("extraDirs");
   expect(String(patched.raw)).toContain(skillsDir);
+});
+
+test("fleet.skill_bundle.install flattens a single top-level directory inside the bundle", async () => {
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "fleet-skill-"));
+  const skillsDir = path.join(tmpRoot, "skills");
+  const wrappedRoot = path.join(tmpRoot, "wrapped-skill");
+  fs.mkdirSync(wrappedRoot, { recursive: true });
+  fs.writeFileSync(path.join(wrappedRoot, "SKILL.md"), "# demo");
+
+  const tarPath = path.join(tmpRoot, "bundle.tar.gz");
+  execFileSync("tar", ["-czf", tarPath, "-C", tmpRoot, "wrapped-skill"]);
+  const bytes = fs.readFileSync(tarPath);
+  const sha256 = sha256Hex(bytes);
+
+  const state = { executed: {} } as any;
+  const provider = {
+    configGet: async () => ({ hash: "h1" }),
+    configPatch: async () => undefined,
+  } as any;
+  const controlPlane = {
+    downloadSkillBundle: async () =>
+      bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+  } as any;
+
+  const exec = createExecutor({ provider, state, controlPlane, deviceToken: "t", skillsDir } as any);
+  const res = await exec.run([
+    {
+      id: "t1",
+      action: "fleet.skill_bundle.install",
+      payload: { bundleId: "b1", name: "demo-skill", sha256 },
+    } as any,
+  ]);
+  expect(res.failed).toBe(0);
+  expect(fs.existsSync(path.join(skillsDir, "demo-skill", "SKILL.md"))).toBe(true);
+  expect(fs.existsSync(path.join(skillsDir, "demo-skill", "wrapped-skill"))).toBe(false);
 });
 
 test("fleet.skill_bundle.install does not delete previous bundle on config.patch failure", async () => {

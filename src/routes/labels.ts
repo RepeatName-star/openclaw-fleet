@@ -8,6 +8,14 @@ const UpsertLabelSchema = z.object({
   value: z.string(),
 });
 
+const DeleteLabelQuerySchema = z.object({
+  key: z.string().min(1),
+});
+
+const DeleteLabelBodySchema = z.object({
+  key: z.string().min(1),
+});
+
 type LabelsRoutesOptions = {
   pool?: Pool;
 };
@@ -18,6 +26,14 @@ function isBusinessLabelKey(key: string) {
 
 function isSystemLabelKey(key: string) {
   return key.startsWith("openclaw.io/");
+}
+
+function normalizeRouteKey(rawKey: string) {
+  try {
+    return decodeURIComponent(rawKey);
+  } catch {
+    return rawKey;
+  }
 }
 
 export async function registerLabelsRoutes(app: FastifyInstance, opts: LabelsRoutesOptions) {
@@ -88,19 +104,12 @@ export async function registerLabelsRoutes(app: FastifyInstance, opts: LabelsRou
     reply.send({ ok: true });
   });
 
-  app.delete("/v1/instances/:id/labels/:key", async (request, reply) => {
+  async function handleDelete(instanceId: string, rawKey: string, reply: any) {
     if (!opts.pool) {
       reply.code(500).send({ error: "server not configured" });
       return;
     }
-    const { id, key: rawKey } = request.params as { id: string; key: string };
-
-    let key = rawKey;
-    try {
-      key = decodeURIComponent(rawKey);
-    } catch {
-      // keep raw
-    }
+    const key = normalizeRouteKey(rawKey);
 
     if (isSystemLabelKey(key)) {
       reply.code(400).send({ error: "system labels are read-only" });
@@ -111,7 +120,7 @@ export async function registerLabelsRoutes(app: FastifyInstance, opts: LabelsRou
       return;
     }
 
-    const exists = await opts.pool.query("select 1 from instances where id = $1", [id]);
+    const exists = await opts.pool.query("select 1 from instances where id = $1", [instanceId]);
     if (!exists.rowCount) {
       reply.code(404).send({ error: "not found" });
       return;
@@ -119,13 +128,37 @@ export async function registerLabelsRoutes(app: FastifyInstance, opts: LabelsRou
 
     const res = await opts.pool.query(
       "delete from instance_labels where instance_id = $1 and key = $2 and source = 'business' returning key",
-      [id, key],
+      [instanceId, key],
     );
     if (!res.rowCount) {
       reply.code(404).send({ error: "not found" });
       return;
     }
     reply.send({ ok: true });
+  }
+
+  app.delete("/v1/instances/:id/labels", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsed = DeleteLabelQuerySchema.safeParse(request.query ?? {});
+    if (!parsed.success) {
+      reply.code(400).send({ error: "invalid query" });
+      return;
+    }
+    await handleDelete(id, parsed.data.key, reply);
+  });
+
+  app.delete("/v1/instances/:id/labels/:key", async (request, reply) => {
+    const { id, key } = request.params as { id: string; key: string };
+    await handleDelete(id, key, reply);
+  });
+
+  app.post("/v1/instances/:id/labels/delete", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsed = DeleteLabelBodySchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      reply.code(400).send({ error: "invalid payload" });
+      return;
+    }
+    await handleDelete(id, parsed.data.key, reply);
   });
 }
-
