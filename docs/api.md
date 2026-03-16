@@ -210,7 +210,17 @@ Response:
 { "ok": true }
 ```
 
-### DELETE /v1/instances/:id/labels/:key
+### DELETE /v1/instances/:id/labels?key=<encoded-label-key>
+
+Primary form for proxy-safe deletion of business labels whose key contains `/`.
+
+Example:
+```
+DELETE /v1/instances/<id>/labels?key=biz.openclaw.io%2Fenv
+```
+
+Backward compatibility:
+- `DELETE /v1/instances/:id/labels/:key` is still accepted in v0.1.
 
 Response:
 ```json
@@ -340,7 +350,13 @@ Response:
       "instance_name": "<optional>",
       "labels_snapshot": { "biz.openclaw.io/env": "prod" },
       "facts_snapshot": null,
-      "payload": {},
+      "payload": {
+        "task_id": "<uuid>",
+        "action": "agent.run",
+        "payload": {
+          "message": "rese[sha256:...]"
+        }
+      },
       "artifact_id": "<optional uuid>"
     }
   ]
@@ -396,7 +412,14 @@ Response: bundle metadata.
 
 ### GET /v1/skill-bundles/:id/download
 
-Response: binary `tar.gz` bytes (`content-type: application/gzip`).
+Response: binary `tar.gz` bytes (`content-type: application/gzip`) with `Content-Disposition: attachment; filename="<bundle-name>.tar.gz"`.
+
+### DELETE /v1/skill-bundles/:id
+
+Response:
+```json
+{ "ok": true }
+```
 
 ---
 
@@ -422,7 +445,8 @@ Response:
 { "ok": true, "id": "<uuid>" }
 ```
 
-Note (legacy):
+Notes:
+- Direct task creation immediately emits an `exec.queued` event with a redacted payload summary and a raw `task.payload` artifact.
 - `target_type="group"` still exists for backward compatibility and uses the legacy `group_instances` membership mapping.
 - In v0.1, **Groups are named selectors**, not memberships. Prefer **Campaigns** for batch execution.
 

@@ -26,5 +26,5 @@ test("UI API client exposes v0.1 bulk management methods", () => {
   expect(typeof (api as any).listSkillBundles).toBe("function");
   expect(typeof (api as any).uploadSkillBundle).toBe("function");
   expect(typeof (api as any).downloadSkillBundle).toBe("function");
+  expect(typeof (api as any).deleteSkillBundle).toBe("function");
 });
-

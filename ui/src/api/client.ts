@@ -84,6 +84,7 @@ export type ApiClient = {
     content_base64: string;
   }) => Promise<SkillBundleItem>;
   downloadSkillBundle: (id: string) => Promise<ArrayBuffer>;
+  deleteSkillBundle: (id: string) => Promise<void>;
 };
 
 export function createApiClient(baseUrl = "", fetcher: Fetcher = fetch): ApiClient {
@@ -173,7 +174,7 @@ export function createApiClient(baseUrl = "", fetcher: Fetcher = fetch): ApiClie
     },
     async deleteInstanceLabel(instanceId: string, key: string) {
       const encoded = encodeURIComponent(key);
-      await request<{ ok: true }>(`/v1/instances/${instanceId}/labels/${encoded}`, {
+      await request<{ ok: true }>(`/v1/instances/${instanceId}/labels?key=${encoded}`, {
         method: "DELETE",
       });
     },
@@ -289,6 +290,9 @@ export function createApiClient(baseUrl = "", fetcher: Fetcher = fetch): ApiClie
     },
     async downloadSkillBundle(id: string) {
       return requestArrayBuffer(`/v1/skill-bundles/${id}/download`);
+    },
+    async deleteSkillBundle(id: string) {
+      await request<{ ok: true }>(`/v1/skill-bundles/${id}`, { method: "DELETE" });
     },
   };
 }

@@ -7,7 +7,7 @@ export type ConfigPatchParams = {
 };
 
 export type ConfigGetParams = Record<string, never>;
-export type ConfigGetResult = { baseHash?: string } & Record<string, unknown>;
+export type ConfigGetResult = { baseHash?: string; hash?: string } & Record<string, unknown>;
 
 export type SkillsInstallParams = {
   name: string;

@@ -31,7 +31,17 @@ export function createOpenClawProvider(options: OpenClawProviderOptions): Sideca
       return { gateway_reachable: false };
     },
     async configGet(params: ConfigGetParams): Promise<ConfigGetResult> {
-      return gateway.request("config.get", params) as Promise<ConfigGetResult>;
+      const result = (await gateway.request("config.get", params)) as ConfigGetResult;
+      if (typeof result?.baseHash === "string" && result.baseHash.length > 0) {
+        return result;
+      }
+      if (typeof result?.hash === "string" && result.hash.length > 0) {
+        return {
+          ...result,
+          baseHash: result.hash,
+        };
+      }
+      return result;
     },
     async configPatch(params: ConfigPatchParams) {
       await gateway.request("config.patch", params);

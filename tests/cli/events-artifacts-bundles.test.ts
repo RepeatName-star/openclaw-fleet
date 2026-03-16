@@ -99,3 +99,22 @@ test("cli: bundles upload reads file and posts base64 content", async () => {
   expect(out.join("")).toBe(JSON.stringify({ id: "b1" }) + "\n");
 });
 
+test("cli: bundles delete calls DELETE /v1/skill-bundles/:id", async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const { io, out } = createMockIo();
+
+  const code = await runCli(
+    ["--base-url", "http://x", "bundles", "delete", "b1"],
+    {},
+    io as any,
+    async (url, init) => {
+      calls.push({ url: String(url), init });
+      return new Response(JSON.stringify({ ok: true }), { status: 200 }) as any;
+    },
+  );
+
+  expect(code).toBe(0);
+  expect(calls[0].url).toBe("http://x/v1/skill-bundles/b1");
+  expect(calls[0].init?.method).toBe("DELETE");
+  expect(out.join("")).toBe(JSON.stringify({ ok: true }) + "\n");
+});
