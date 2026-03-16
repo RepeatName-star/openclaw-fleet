@@ -39,11 +39,29 @@ test("openclaw provider returns agent.run payload", async () => {
       agentId: "main",
       deliver: false,
     }),
-    { expectFinal: true },
+    { expectFinal: true, timeoutMs: 300000 },
   );
   expect(res).toEqual({
     runId: "run-1",
     status: "ok",
     result: { text: "Today is Monday." },
   });
+});
+
+test("openclaw provider honors agent.run timeout override", async () => {
+  const request = vi.fn().mockResolvedValue({ runId: "run-2", status: "ok" });
+  const gateway = { request } as any;
+  const provider = createOpenClawProvider({ gateway });
+
+  await provider.agentRun({ agentId: "main", message: "hello", timeoutMs: 600000 });
+
+  expect(request).toHaveBeenCalledWith(
+    "agent",
+    expect.objectContaining({
+      message: "hello",
+      agentId: "main",
+      deliver: false,
+    }),
+    { expectFinal: true, timeoutMs: 600000 },
+  );
 });

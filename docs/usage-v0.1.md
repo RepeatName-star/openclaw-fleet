@@ -307,7 +307,8 @@ payload：
   "message": "Run diagnostics",
   "agentId": "main",
   "sessionKey": "agent:main:main",
-  "idempotencyKey": "<optional>"
+  "idempotencyKey": "<optional>",
+  "timeoutMs": 300000
 }
 ```
 
@@ -316,10 +317,12 @@ payload：
 - `agentId`: 可选
 - `sessionKey`: 可选
 - `idempotencyKey`: 可选；不填时 Sidecar 自动生成
+- `timeoutMs`: 可选；单位毫秒，默认 `300000`
 
 预期效果：
 - Sidecar 调用 Gateway `agent`
 - Fleet 默认加上 `deliver: false`
+- Sidecar 默认等待最终响应 5 分钟；可通过 `timeoutMs` 覆盖
 - 更像“远程执行一次 agent run 并拿回结果”，不是默认往外部渠道发消息
 
 ## 4. 审计与回显怎么看

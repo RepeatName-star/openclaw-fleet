@@ -25,6 +25,46 @@ function isProbeAction(action: string) {
   return action === "fleet.gateway.probe" || action === "skills.status";
 }
 
+function normalizeAgentRunPayloads(input: unknown) {
+  if (!Array.isArray(input)) {
+    return undefined;
+  }
+  return input
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item))
+    .map((item) => ({
+      text: typeof item.text === "string" ? item.text : null,
+      mediaUrl: typeof item.mediaUrl === "string" ? item.mediaUrl : null,
+    }));
+}
+
+function normalizeAgentRunResult(result: unknown) {
+  if (!result || typeof result !== "object" || Array.isArray(result)) {
+    return result;
+  }
+  const record = result as Record<string, unknown>;
+  const nested =
+    record.result && typeof record.result === "object" && !Array.isArray(record.result)
+      ? (record.result as Record<string, unknown>)
+      : null;
+  const payloads = normalizeAgentRunPayloads(nested?.payloads);
+  if (!payloads) {
+    return result;
+  }
+  return {
+    runId: record.runId,
+    status: record.status,
+    summary: record.summary,
+    result: { payloads },
+  };
+}
+
+function normalizeTaskResult(action: string, result: unknown) {
+  if (action === "agent.run") {
+    return normalizeAgentRunResult(result);
+  }
+  return result;
+}
+
 async function resetProbeState(pool: Pool, instanceId: string, probeKind: string) {
   await pool.query(
     "insert into instance_probe_states (instance_id, probe_kind, consecutive_failures, next_allowed_at, updated_at) values ($1,$2,0,null,now()) on conflict (instance_id, probe_kind) do update set consecutive_failures = 0, next_allowed_at = null, updated_at = now()",
@@ -83,11 +123,12 @@ export async function registerTasksAckRoutes(app: FastifyInstance, opts: TasksAc
     const taskTargetType = taskRes.rows[0].target_type as string;
     const taskTargetId = taskRes.rows[0].target_id as string;
     const executingInstanceId = request.device.instanceId;
+    const normalizedResult = normalizeTaskResult(taskAction, parsed.data.result ?? null);
 
     if (parsed.data.status === "ok") {
       await opts.pool.query(
         "update tasks set status = 'done', result = $2, updated_at = now() where id = $1",
-        [taskId, parsed.data.result ?? null],
+        [taskId, normalizedResult],
       );
       await opts.pool.query(
         "insert into task_attempts (task_id, attempt, status) values ($1, $2, $3)",
@@ -139,7 +180,7 @@ export async function registerTasksAckRoutes(app: FastifyInstance, opts: TasksAc
           : "exec.finished";
       const artifact = await insertArtifact(opts.pool, {
         kind: "task.result",
-        content: { task_id: taskId, action: taskAction, status: "ok", result: parsed.data.result ?? null },
+        content: { task_id: taskId, action: taskAction, status: "ok", result: normalizedResult },
       });
       await insertEvent(opts.pool, {
         event_type: eventType,
@@ -192,7 +233,7 @@ export async function registerTasksAckRoutes(app: FastifyInstance, opts: TasksAc
       action: taskAction,
       status: "error",
       error: parsed.data.error ?? null,
-      result: parsed.data.result ?? null,
+      result: normalizedResult,
     };
     const artifact = await insertArtifact(opts.pool, { kind: "task.error", content: raw });
     const errorRedacted =

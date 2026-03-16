@@ -45,6 +45,7 @@ export type AgentRunParams = {
   agentId?: string;
   sessionKey?: string;
   idempotencyKey?: string;
+  timeoutMs?: number;
 };
 
 export interface SidecarProvider {

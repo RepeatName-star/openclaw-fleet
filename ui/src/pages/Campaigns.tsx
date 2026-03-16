@@ -71,8 +71,12 @@ const ACTION_DOCS: Record<
   },
   "agent.run": {
     title: "agent.run payload",
-    example: JSON.stringify({ message: "Run diagnostics", agentId: "main", sessionKey: "agent:main:main" }, null, 2),
-    note: "message 为必填；agentId/sessionKey 不填时由实例自身按默认行为处理。",
+    example: JSON.stringify(
+      { message: "Run diagnostics", agentId: "main", sessionKey: "agent:main:main", timeoutMs: 300000 },
+      null,
+      2,
+    ),
+    note: "message 为必填；agentId/sessionKey 不填时由实例自身按默认行为处理。timeoutMs 可选，默认等待最终响应 5 分钟。",
   },
 };
 

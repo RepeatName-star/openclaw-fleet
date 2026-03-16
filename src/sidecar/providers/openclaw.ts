@@ -18,6 +18,8 @@ export type OpenClawProviderOptions = {
   gateway: GatewayClient;
 };
 
+const DEFAULT_AGENT_RUN_TIMEOUT_MS = 5 * 60_000;
+
 export function createOpenClawProvider(options: OpenClawProviderOptions): SidecarProvider {
   const gateway = options.gateway;
 
@@ -76,7 +78,7 @@ export function createOpenClawProvider(options: OpenClawProviderOptions): Sideca
         sessionKey: params.sessionKey,
         idempotencyKey: params.idempotencyKey ?? randomUUID(),
         deliver: false,
-      }, { expectFinal: true });
+      }, { expectFinal: true, timeoutMs: params.timeoutMs ?? DEFAULT_AGENT_RUN_TIMEOUT_MS });
     },
   };
 }
