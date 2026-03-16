@@ -96,7 +96,11 @@ export function createApiClient(baseUrl = "", fetcher: Fetcher = fetch): ApiClie
       const text = await res.text().catch(() => "");
       throw new Error(text || `request failed: ${res.status}`);
     }
-    return (await res.json()) as T;
+    const text = await res.text();
+    if (!text.trim()) {
+      return undefined as T;
+    }
+    return JSON.parse(text) as T;
   }
 
   async function requestText(path: string, init?: RequestInit): Promise<string> {
