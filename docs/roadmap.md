@@ -29,9 +29,9 @@ This document captures the post-MVP roadmap based on current tradeoffs and gaps.
 ## P1 - Fleet Management
 
 ### Grouping and bulk actions
-- Labels/tags and groups (create/update/delete).
-- Group-based task dispatch and rollback.
-- Gradual rollout policies (batch, canary, staged).
+- Make `rollout` actually control pacing/concurrency (batch, canary, staged).
+- Add `Policy` for long-term baseline alignment separate from `Campaign`.
+- Bring CLI coverage to parity for group/campaign update/delete flows.
 
 ### Audit and history
 - Immutable audit events for all actions (UI + API + sidecar).
@@ -67,14 +67,14 @@ This document captures the post-MVP roadmap based on current tradeoffs and gaps.
 ## Suggested Milestones
 
 ### v0.2 (Stability)
-- Reconnect + retry policy
-- Error transparency in UI
-- Task/attempt correlation
+- Campaign rollout engine
+- Stronger task/attempt correlation across control plane, sidecar, and gateway
+- Artifact/object-storage offload option for large raw payloads/results
 
 ### v0.3 (Manageability)
-- Labels and group dispatch
-- Basic audit log
+- Policy baseline alignment
 - Config templates
+- Object storage/CDN backed bundle distribution for cross-region fleets
 
 ### v0.4 (Security)
 - RBAC + token rotation

@@ -2,6 +2,9 @@
 
 本文描述当前 `openclaw-fleet` 已支持的功能面、每个 action 的参数、预期效果，以及排障时该看哪里。
 
+如果你主要关心 `Campaign` 字段语义、`Gate` / `Rollout` 边界和常用 payload 模板，另见：
+- `docs/campaign-manual.md`
+
 适用版本：
 - Control Plane: 当前 `master` 上的 v0.1 实现
 - OpenClaw Gateway: 以 `/home/ldx/codex/agent-swarm/openclaw` 当前源码语义为准
@@ -62,12 +65,13 @@
 ### 2.4 Campaigns
 
 支持：
-- 创建 / 更新 / 关闭 Campaign
+- 创建 / 更新 / 关闭 / 删除已关闭 Campaign
 - selector fan-out
 - 动态跟随 selector 成员变化
 - best-effort 执行
 - blocked 实例持续保留，条件满足后自动补齐
 - `generation` 仅在 `action/payload` 变化时递增
+- `rollout` 字段可保存，但当前 reconciler 还不会按它做分批/限流
 
 当前 Gate 依赖的 Fact：
 - `online`
@@ -75,12 +79,22 @@
 - `version`
 - `skills_snapshot`
 
+当前 Gate 生效方式：
+- `online`：所有 Campaign action 都需要
+- `gateway_reachable`：所有 gateway-bound action 都需要，`fleet.gateway.probe` 例外
+- `version`：仅当 `gate.minVersion` 显式设置为非零值时才检查
+- `skills_snapshot`：当前只阻塞技能变更类 action：`skills.install`、`skills.update`、`fleet.skill_bundle.install`
+
 ### 2.5 Direct Tasks
 
 支持：
 - 直接向单实例创建任务：`POST /v1/tasks`
 - direct task 创建时会写一条 `exec.queued` 事件
 - 该事件自带脱敏 payload；原始 payload 进入 `task.payload` artifact
+
+边界：
+- direct task 只支持 `target_type="instance"`
+- 批量执行统一走 `Campaign`，不再支持 `target_type="group"`
 
 ### 2.6 Events / Artifacts
 
@@ -272,7 +286,10 @@ payload：
 
 预期效果：
 - 调用 Gateway `agents.files.set`
-- 随后触发该 agent 会话重置
+- 只替换 memory 文件，不会隐式重置 session
+
+如果你需要重置会话：
+- 请显式再下发一次 `session.reset`
 
 ### 3.8 `session.reset`
 
@@ -351,16 +368,18 @@ payload：
 - 看实例
 - 管 labels
 - 管 groups
-- 创建 campaign
+- 管 campaigns（创建 / 编辑 / 关闭 / 删除已关闭项）
 - 查看 events / artifacts
 - 上传 / 删除 / 分发 skill bundles
 
 ### 5.2 CLI 当前适合做什么
 
-- 批量重复操作
+- 脚本化调用当前已实现的子集命令
 - 导出 events
 - bundles 上传 / 删除
-- labels / groups / campaigns 基础操作
+- labels 基础操作
+- groups 的 list/create/matches
+- campaigns 的 list/create/close
 
 ### 5.3 API 当前适合做什么
 
@@ -372,6 +391,7 @@ payload：
 
 - Group 是命名 selector，不是静态机器组
 - Gate 只检查并阻塞，不做修复
+- `rollout` 当前只是预留字段，不会改变调度行为
 - v0.1 还没有 Policy 层
 - 还没有多租户 / RBAC
 - 还没有任意宿主机脚本执行
