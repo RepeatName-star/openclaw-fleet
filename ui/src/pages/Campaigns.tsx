@@ -86,7 +86,7 @@ export default function CampaignsPage() {
   const [groups, setGroups] = useState<GroupItem[]>([]);
   const [name, setName] = useState("");
   const [groupId, setGroupId] = useState("");
-  const [selector, setSelector] = useState("biz.openclaw.io/");
+  const [selector, setSelector] = useState("");
   const [action, setAction] = useState("skills.status");
   const [payloadRaw, setPayloadRaw] = useState("{}");
   const [gateRaw, setGateRaw] = useState("{}");

@@ -316,6 +316,10 @@ Request:
 }
 ```
 
+Notes:
+- `selector` must be a valid K8s-style label selector expression.
+- Prefix fragments such as `biz.openclaw.io/` are rejected with `400 {"error":"invalid selector"}`.
+
 Response: campaign row.
 
 ### GET /v1/campaigns/:id
@@ -325,6 +329,8 @@ Response: campaign row.
 ### PATCH /v1/campaigns/:id
 
 Notes:
+- If `selector` is present, it must still be a valid K8s-style label selector expression.
+- Prefix fragments such as `biz.openclaw.io/` are rejected with `400 {"error":"invalid selector"}`.
 - `generation` increments only when `action` or `payload` changes (selector/gate/rollout changes do not bump generation).
 - `gate.minVersion` is the only server-read gate field in v0.1.1.
 - `rollout` is persisted for forward compatibility but is not enforced by the current reconciler.

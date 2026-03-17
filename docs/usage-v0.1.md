@@ -74,6 +74,11 @@
 - `rollout` 字段可保存，但当前 reconciler 还不会按它做分批/限流
 - 删除后 Campaign 会从列表中隐藏，但历史事件仍可继续按原 `campaign_id` 检索
 
+selector 约束：
+- 必须填写完整合法的 K8s 风格 label selector。
+- `biz.openclaw.io/` 这类“只写前缀”的字符串不是合法 selector，会被服务端拒绝。
+- 如果想批量命中，请写明确条件，例如 `biz.openclaw.io/openclaw=true`。
+
 当前 Gate 依赖的 Fact：
 - `online`
 - `gateway_reachable`

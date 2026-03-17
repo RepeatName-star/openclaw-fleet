@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
+import { parseLabelSelector } from "../labels/label-selector.js";
 
 const CreateSchema = z.object({
   name: z.string().min(1),
@@ -70,6 +71,11 @@ export async function registerCampaignRoutes(app: FastifyInstance, opts: { pool?
       reply.code(400).send({ error: "invalid payload" });
       return;
     }
+    const selectorParsed = parseLabelSelector(parsed.data.selector);
+    if (!selectorParsed.selector) {
+      reply.code(400).send({ error: "invalid selector" });
+      return;
+    }
     const row = await opts.pool.query(
       "insert into campaigns (name, selector, action, payload, gate, rollout, expires_at) values ($1,$2,$3,$4,$5,$6,$7) returning *",
       [
@@ -111,6 +117,13 @@ export async function registerCampaignRoutes(app: FastifyInstance, opts: { pool?
     if (!parsed.success) {
       reply.code(400).send({ error: "invalid payload" });
       return;
+    }
+    if (parsed.data.selector !== undefined) {
+      const selectorParsed = parseLabelSelector(parsed.data.selector);
+      if (!selectorParsed.selector) {
+        reply.code(400).send({ error: "invalid selector" });
+        return;
+      }
     }
 
     const { id } = request.params as { id: string };

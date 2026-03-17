@@ -77,6 +77,25 @@ test("campaigns page shows action-specific payload guidance", async () => {
   expect(screen.getByText(/"message"/)).toBeTruthy();
 });
 
+test("campaigns page starts with empty selector instead of invalid prefix fragment", async () => {
+  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url === "/v1/campaigns") {
+      return jsonResponse({ items: [] });
+    }
+    if (url === "/v1/groups") {
+      return jsonResponse({ items: [] });
+    }
+    throw new Error(`unexpected url: ${url}`);
+  });
+  vi.stubGlobal("fetch", fetchMock);
+
+  render(<CampaignsPage />);
+
+  const selectorInput = await screen.findByLabelText("Selector");
+  expect((selectorInput as HTMLInputElement).value).toBe("");
+});
+
 test("campaign edit loads full detail before saving so existing json fields are preserved", async () => {
   let patchBody: Record<string, unknown> | null = null;
 

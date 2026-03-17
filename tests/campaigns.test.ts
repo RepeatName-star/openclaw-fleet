@@ -26,6 +26,27 @@ test("POST /v1/campaigns creates an open campaign", async () => {
   expect(body).toHaveProperty("id");
 });
 
+test("POST /v1/campaigns rejects invalid selector", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+  const pool = createTestPool(db);
+  const app = await buildServer({ pool, redis });
+
+  const res = await app.inject({
+    method: "POST",
+    url: "/v1/campaigns",
+    payload: {
+      name: "c1",
+      selector: "biz.openclaw.io/",
+      action: "skills.status",
+      payload: {},
+    },
+  });
+
+  expect(res.statusCode).toBe(400);
+  expect(res.json()).toEqual({ error: "invalid selector" });
+});
+
 test("GET /v1/campaigns lists campaigns", async () => {
   const db = initTestDb();
   await runMigrations(db);
@@ -91,6 +112,27 @@ test("PATCH /v1/campaigns/:id increments generation only when action/payload cha
   });
   expect(patch2.statusCode).toBe(200);
   expect(patch2.json().generation).toBe(2);
+});
+
+test("PATCH /v1/campaigns/:id rejects invalid selector", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+  const pool = createTestPool(db);
+  const created = await pool.query(
+    "insert into campaigns (name, selector, action, payload) values ($1,$2,$3,$4) returning id",
+    ["c1", "biz.openclaw.io/team=a", "skills.status", {}],
+  );
+  const id = created.rows[0].id as string;
+  const app = await buildServer({ pool, redis });
+
+  const res = await app.inject({
+    method: "PATCH",
+    url: `/v1/campaigns/${id}`,
+    payload: { selector: "biz.openclaw.io/" },
+  });
+
+  expect(res.statusCode).toBe(400);
+  expect(res.json()).toEqual({ error: "invalid selector" });
 });
 
 test("DELETE /v1/campaigns/:id rejects open campaigns", async () => {

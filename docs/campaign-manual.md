@@ -50,6 +50,8 @@
 - `selector`
   - K8s 风格 label selector。
   - 只匹配 labels，不检查在线状态、gateway 可达性、版本或 skills 快照。
+  - 必须是完整合法的 selector 表达式；像 `biz.openclaw.io/` 这样的前缀片段会被服务端直接拒绝。
+  - 不支持“按前缀匹配所有业务标签”这种通配语义；如果要批量命中，请写成明确条件，例如 `biz.openclaw.io/openclaw=true`。
 
 - `action`
   - 每个命中实例实际执行的动作。
