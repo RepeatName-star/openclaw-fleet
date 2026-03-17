@@ -1,7 +1,7 @@
 import { buildServer } from "../src/server.js";
 import { createTestPool, initTestDb, runMigrations } from "./support/db.js";
 
-test("POST /v1/tasks creates a task", async () => {
+test("POST /v1/tasks rejects legacy group targets", async () => {
   const db = initTestDb();
   await runMigrations(db);
   const pool = createTestPool(db);
@@ -17,7 +17,7 @@ test("POST /v1/tasks creates a task", async () => {
       payload: {},
     },
   });
-  expect(res.statusCode).toBe(200);
+  expect(res.statusCode).toBe(400);
 });
 
 test("POST /v1/tasks emits audit event with redacted message and raw payload artifact", async () => {

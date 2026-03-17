@@ -221,6 +221,7 @@ DELETE /v1/instances/<id>/labels?key=biz.openclaw.io%2Fenv
 
 Backward compatibility:
 - `DELETE /v1/instances/:id/labels/:key` is still accepted in v0.1.
+- `POST /v1/instances/:id/labels/delete` with JSON body `{ "key": "biz.openclaw.io/env" }` is the browser-safe alias used by the UI.
 
 Response:
 ```json
@@ -253,6 +254,15 @@ Request:
 
 ### DELETE /v1/groups/:id
 
+### POST /v1/groups/:id/delete
+
+Browser-safe alias for group deletion.
+
+Response:
+```json
+{ "ok": true }
+```
+
 ### GET /v1/groups/:id/matches
 
 Response:
@@ -270,6 +280,9 @@ Campaign is the v0.1 batch execution object:
 - gate/probe/facts aware
 
 ### GET /v1/campaigns
+
+Query:
+- `include_deleted=true|1` to include soft-deleted campaigns in the list. Default is to hide them.
 
 Response:
 ```json
@@ -306,6 +319,10 @@ Request:
 }
 ```
 
+Notes:
+- `selector` must be a valid K8s-style label selector expression.
+- Prefix fragments such as `biz.openclaw.io/` are rejected with `400 {"error":"invalid selector"}`.
+
 Response: campaign row.
 
 ### GET /v1/campaigns/:id
@@ -315,7 +332,16 @@ Response: campaign row.
 ### PATCH /v1/campaigns/:id
 
 Notes:
+- If `selector` is present, it must still be a valid K8s-style label selector expression.
+- Prefix fragments such as `biz.openclaw.io/` are rejected with `400 {"error":"invalid selector"}`.
 - `generation` increments only when `action` or `payload` changes (selector/gate/rollout changes do not bump generation).
+- `gate.minVersion` is the only server-read gate field in v0.1.1.
+- `rollout` is persisted for forward compatibility but is not enforced by the current reconciler.
+- Gate is action-aware in v0.1.1:
+  - `online` is always required
+  - `gateway_reachable` is required for gateway-bound actions except `fleet.gateway.probe`
+  - `openclaw_version` is checked only when `gate.minVersion` is explicitly set to a non-zero value
+  - `skills_snapshot` currently blocks only skill-mutating campaign actions (`skills.install`, `skills.update`, `fleet.skill_bundle.install`)
 
 ### POST /v1/campaigns/:id/close
 
@@ -323,6 +349,25 @@ Response:
 ```json
 { "id": "<uuid>", "status": "closed", "closed_at": "<timestamptz>" }
 ```
+
+### DELETE /v1/campaigns/:id
+
+Delete a closed campaign only.
+
+Response:
+```json
+{ "ok": true }
+```
+
+Notes:
+- Open campaigns return `409`.
+- Deleted campaigns are hidden from `GET /v1/campaigns` and `GET /v1/campaigns/:id`.
+- Deleting a campaign keeps the underlying campaign id as a tombstone so historical `events?campaign_id=<id>` queries continue to work.
+- Historical tasks, events, and artifacts are retained.
+
+### POST /v1/campaigns/:id/delete
+
+Browser-safe alias for campaign deletion.
 
 ---
 
@@ -421,6 +466,15 @@ Response:
 { "ok": true }
 ```
 
+### POST /v1/skill-bundles/:id/delete
+
+Browser-safe alias for skill bundle deletion.
+
+Response:
+```json
+{ "ok": true }
+```
+
 ---
 
 ## Tasks (Admin)
@@ -447,8 +501,8 @@ Response:
 
 Notes:
 - Direct task creation immediately emits an `exec.queued` event with a redacted payload summary and a raw `task.payload` artifact.
-- `target_type="group"` still exists for backward compatibility and uses the legacy `group_instances` membership mapping.
-- In v0.1, **Groups are named selectors**, not memberships. Prefer **Campaigns** for batch execution.
+- `target_type="group"` is rejected in v0.1.1.
+- In v0.1, **Groups are named selectors**, not memberships. Use **Campaigns** for batch execution.
 
 ### GET /v1/tasks
 

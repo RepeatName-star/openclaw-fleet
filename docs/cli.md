@@ -1,6 +1,6 @@
 # CLI 使用说明（v0.1）
 
-当前 v0.1 的批量管理能力以 **Control Plane API + Sidecar + CLI** 为主（UI 仍可用于查看实例/任务，但 Campaign/Events/Bundles 等以 CLI 操作为主）。
+当前 v0.1.1 的批量管理能力已经同时提供 **UI + API + CLI**。CLI 目前覆盖的是一组偏脚本化的运维子集，不是全部管理功能的镜像。
 
 本文覆盖：
 - 实例纳管（Sidecar enroll/heartbeat）
@@ -11,6 +11,7 @@
 
 完整功能矩阵、每个 action 的 payload 与预期效果，见：
 - `docs/usage-v0.1.md`
+- `docs/campaign-manual.md`
 
 ---
 
@@ -141,6 +142,27 @@ curl http://127.0.0.1:3000/v1/instances
 
 或用 UI（如果已 `pnpm ui:build` 并由控制面托管）。
 
+### 3.3 当前 CLI 已实现的命令边界
+
+当前 CLI 只覆盖下面这些命令：
+
+- `campaign list`
+- `campaign create`
+- `campaign close`
+- `labels get|set|del`
+- `groups list`
+- `groups create`
+- `groups matches`
+- `events export`
+- `artifacts get`
+- `bundles upload`
+- `bundles delete`
+
+尚未在 CLI 中提供：
+- campaign update / delete
+- group update / delete
+- bundles list / download
+
 ---
 
 ## 4. Labels / Selector / Group（命名 selector）
@@ -257,7 +279,11 @@ pnpm fleet:cli:ts --base-url http://127.0.0.1:3000 campaign create \
 
 - `agent.run`（投递一条消息给 agent）
 
-- `memory.replace`（替换 agent memory 文件并 reset session）
+- `memory.replace`（只替换 agent memory 文件；如需 reset，要再单独下发 `session.reset`）
+
+补充说明：
+- `rollout` 字段当前只是保存，不会改变调度节奏。
+- 批量执行统一走 `Campaign`；CLI 没有 `group` direct task 模式。
 
 ---
 
@@ -363,7 +389,11 @@ pnpm fleet:cli:ts --base-url http://127.0.0.1:3000 campaign create \
 
 - Campaign 一直 Blocked：
   - 导出该 campaign 的 events，查看 `target.blocked` 的 `blocked_reason`。
-  - v0.1 Gate 关键事实依赖：`online` / `gateway_reachable` / `version` / `skills_snapshot`。
+  - v0.1.1 Gate 是 action-aware：
+    - `online` 始终必需
+    - `gateway_reachable` 对 gateway-bound action 生效，`fleet.gateway.probe` 例外
+    - `version` 仅在显式设置 `gate.minVersion` 时生效
+    - `skills_snapshot` 当前只会卡住技能变更类 action
 
 - Skill bundle 安装失败：
   - 导出 events，找到 `exec.finished` 的 `artifact_id`，再用 `artifacts get` 看原始错误。

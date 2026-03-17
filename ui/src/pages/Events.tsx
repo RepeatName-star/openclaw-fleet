@@ -38,7 +38,7 @@ export default function EventsPage() {
   }, []);
 
   const loadMeta = useCallback(async () => {
-    const [cs, is] = await Promise.all([api.listCampaigns(), api.listInstances()]);
+    const [cs, is] = await Promise.all([api.listCampaigns({ include_deleted: true }), api.listInstances()]);
     setCampaigns(cs);
     setInstances(is);
   }, [api]);
@@ -140,7 +140,9 @@ export default function EventsPage() {
               <option value="">(all)</option>
               {campaigns.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name} ({c.id.slice(0, 8)})
+                  {c.name}
+                  {c.status === "deleted" ? " [deleted]" : ""}
+                  {` (${c.id.slice(0, 8)})`}
                 </option>
               ))}
             </select>

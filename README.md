@@ -121,7 +121,7 @@ flowchart TB
   - Memory/Persona editor
   - Labels management (business labels per instance)
   - Groups (named selectors) management + matches preview
-  - Campaigns management (create/update/close, can seed selector from Group)
+  - Campaigns management (create/update/close/delete-closed, can seed selector from Group)
   - Events timeline + export (JSONL/CSV) + artifact viewer
   - Skill bundles upload/list/download/delete + install helpers (task/campaign)
   - Per-instance OpenClaw console link (`control_ui_url`)
@@ -211,6 +211,7 @@ Run all SQL files in `migrations/` against your Postgres database:
 
 See `docs/api.md` for endpoints and payloads.
 See `docs/usage-v0.1.md` for the current feature matrix, action payloads, expected effects, and operational caveats.
+See `docs/campaign-manual.md` for Campaign field semantics, Gate/Rollout boundaries, and common payload templates.
 
 UI-related read endpoints:
 - `GET /v1/instances`

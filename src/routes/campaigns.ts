@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
+import { parseLabelSelector } from "../labels/label-selector.js";
 
 const CreateSchema = z.object({
   name: z.string().min(1),
@@ -22,14 +23,55 @@ const PatchSchema = z.object({
   expires_at: z.string().datetime().optional(),
 });
 
+const ListQuerySchema = z.object({
+  include_deleted: z.union([z.string(), z.boolean()]).optional(),
+});
+
+function isTruthyFlag(value: string | boolean | undefined): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value !== "string") return false;
+  return value === "1" || value.toLowerCase() === "true";
+}
+
 export async function registerCampaignRoutes(app: FastifyInstance, opts: { pool?: Pool }) {
-  app.get("/v1/campaigns", async (_req, reply) => {
+  async function handleDelete(id: string, reply: any) {
     if (!opts.pool) {
       reply.code(500).send({ error: "server not configured" });
       return;
     }
+
+    const current = await opts.pool.query(
+      "select id, status from campaigns where id = $1 and status <> 'deleted'",
+      [id],
+    );
+    if (!current.rowCount) {
+      reply.code(404).send({ error: "not found" });
+      return;
+    }
+    if (current.rows[0].status !== "closed") {
+      reply.code(409).send({ error: "campaign must be closed before delete" });
+      return;
+    }
+
+    await opts.pool.query(
+      "update campaigns set status = 'deleted', updated_at = now() where id = $1",
+      [id],
+    );
+    reply.send({ ok: true });
+  }
+
+  app.get("/v1/campaigns", async (request, reply) => {
+    if (!opts.pool) {
+      reply.code(500).send({ error: "server not configured" });
+      return;
+    }
+    const parsedQuery = ListQuerySchema.safeParse(request.query ?? {});
+    const includeDeleted = parsedQuery.success ? isTruthyFlag(parsedQuery.data.include_deleted) : false;
     const res = await opts.pool.query(
-      "select id, name, selector, action, generation, status, created_at, updated_at, closed_at, expires_at from campaigns order by created_at desc",
+      `select id, name, selector, action, generation, status, created_at, updated_at, closed_at, expires_at
+       from campaigns
+       ${includeDeleted ? "" : "where status <> 'deleted'"}
+       order by created_at desc`,
     );
     reply.send({ items: res.rows });
   });
@@ -42,6 +84,11 @@ export async function registerCampaignRoutes(app: FastifyInstance, opts: { pool?
     const parsed = CreateSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
       reply.code(400).send({ error: "invalid payload" });
+      return;
+    }
+    const selectorParsed = parseLabelSelector(parsed.data.selector);
+    if (!selectorParsed.selector) {
+      reply.code(400).send({ error: "invalid selector" });
       return;
     }
     const row = await opts.pool.query(
@@ -65,7 +112,10 @@ export async function registerCampaignRoutes(app: FastifyInstance, opts: { pool?
       return;
     }
     const { id } = request.params as { id: string };
-    const res = await opts.pool.query("select * from campaigns where id = $1", [id]);
+    const res = await opts.pool.query(
+      "select * from campaigns where id = $1 and status <> 'deleted'",
+      [id],
+    );
     if (!res.rowCount) {
       reply.code(404).send({ error: "not found" });
       return;
@@ -83,11 +133,18 @@ export async function registerCampaignRoutes(app: FastifyInstance, opts: { pool?
       reply.code(400).send({ error: "invalid payload" });
       return;
     }
+    if (parsed.data.selector !== undefined) {
+      const selectorParsed = parseLabelSelector(parsed.data.selector);
+      if (!selectorParsed.selector) {
+        reply.code(400).send({ error: "invalid selector" });
+        return;
+      }
+    }
 
     const { id } = request.params as { id: string };
 
     const current = await opts.pool.query(
-      "select id, action, payload, generation from campaigns where id = $1",
+      "select id, action, payload, generation from campaigns where id = $1 and status <> 'deleted'",
       [id],
     );
     if (!current.rowCount) {
@@ -108,7 +165,7 @@ export async function registerCampaignRoutes(app: FastifyInstance, opts: { pool?
     }
 
     const res = await opts.pool.query(
-      "update campaigns set name = coalesce($2, name), selector = coalesce($3, selector), action = coalesce($4, action), payload = coalesce($5, payload), gate = coalesce($6, gate), rollout = coalesce($7, rollout), expires_at = coalesce($8, expires_at), generation = $9, updated_at = now() where id = $1 returning *",
+      "update campaigns set name = coalesce($2, name), selector = coalesce($3, selector), action = coalesce($4, action), payload = coalesce($5, payload), gate = coalesce($6, gate), rollout = coalesce($7, rollout), expires_at = coalesce($8, expires_at), generation = $9, updated_at = now() where id = $1 and status <> 'deleted' returning *",
       [
         id,
         parsed.data.name ?? null,
@@ -139,5 +196,15 @@ export async function registerCampaignRoutes(app: FastifyInstance, opts: { pool?
       return;
     }
     reply.send(res.rows[0]);
+  });
+
+  app.delete("/v1/campaigns/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    await handleDelete(id, reply);
+  });
+
+  app.post("/v1/campaigns/:id/delete", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    await handleDelete(id, reply);
   });
 }

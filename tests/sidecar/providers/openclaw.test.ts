@@ -2,16 +2,20 @@ import { createOpenClawProvider } from "../../../src/sidecar/providers/openclaw.
 import { expect, test, vi } from "vitest";
 
 test("openclaw provider maps memory replace", async () => {
-  const calls: Array<{ method: string }> = [];
+  const request = vi.fn(async (method: string) => {
+    return {};
+  });
   const gateway = {
-    request: async (method: string) => {
-      calls.push({ method });
-      return {};
-    },
+    request,
   } as any;
   const provider = createOpenClawProvider({ gateway });
   await provider.memoryReplace({ agentId: "main", content: "x" });
-  expect(calls.map((c) => c.method)).toEqual(["agents.files.set", "sessions.reset"]);
+  expect(request).toHaveBeenCalledTimes(1);
+  expect(request).toHaveBeenCalledWith("agents.files.set", {
+    agentId: "main",
+    name: "MEMORY.md",
+    content: "x",
+  });
 });
 
 test("openclaw provider supports config.get", async () => {

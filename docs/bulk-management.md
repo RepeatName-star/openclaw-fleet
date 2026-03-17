@@ -75,8 +75,7 @@ Recommended TTL defaults (v0.1):
 - `skills_snapshot`: 10m (plus event-driven invalidation on skill updates)
 
 Notes:
-- `version` is used for compatibility gating (e.g. `version >= minVersion`).
-  - `minVersion` has a global default and can be overridden per Campaign.
+- `version` is used for compatibility gating only when a campaign explicitly sets `gate.minVersion`.
   - Comparison must support OpenClaw's current CalVer-style format (example: `2026.2.26`) and SemVer.
   - If a version cannot be parsed, the gate should fail closed (treat as blocked) and surface the raw value in a probe-related event.
 
@@ -97,7 +96,8 @@ Properties:
 - `selector`: label selector string (scope)
 - `action` + `payload`: what to run
 - `gate`: checks required before an instance is eligible
-- `rollout`: pacing/concurrency controls (optional for v0.1; can default to "unlimited with backpressure")
+- `rollout`: pacing/concurrency controls
+  - In v0.1 it is stored but not enforced by the reconciler yet.
 - `generation`: increments **only when** `action/payload` changes
 - lifecycle:
   - `open` by default
@@ -132,9 +132,10 @@ Gate is "check and block", not "repair".
 
 Common v0.1 gate checks (illustrative):
 - `online=true` (within TTL)
-- `gateway_reachable=true` (within TTL)
-- `version >= minVersion` (with global default + per-campaign override)
+- `gateway_reachable=true` (within TTL) for gateway-bound actions except `fleet.gateway.probe`
+- `version >= minVersion` only when a campaign explicitly sets `gate.minVersion`
 - `skills_snapshot` is fresh (not stale) when a campaign depends on skills state
+  - v0.1.1 currently treats `skills.install`, `skills.update`, and `fleet.skill_bundle.install` as skills-dependent actions
 
 ### Policy (Long-Term Baseline)
 

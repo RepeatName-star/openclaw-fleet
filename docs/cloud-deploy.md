@@ -39,10 +39,11 @@ Start control plane:
 ```bash
 pnpm install
 pnpm build
-pnpm start
+pnpm ui:build   # optional but recommended if you use the built-in UI
+node --env-file=.env dist/index.js
 ```
 
-> Production note: you can `pnpm build` and run `node dist/index.js` under systemd, but `pnpm dev` is fine for testing.
+> Production note: after pulling backend changes, rebuild with `pnpm build`; after pulling UI changes, also run `pnpm ui:build`.
 
 ## 4) Configure Sidecar
 

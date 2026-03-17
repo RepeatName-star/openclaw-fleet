@@ -29,11 +29,12 @@ test("UI API client exposes v0.1 bulk management methods", () => {
   expect(typeof (api as any).deleteSkillBundle).toBe("function");
 });
 
-test("UI API client uses POST alias for label and bundle deletion", async () => {
+test("UI API client uses POST alias for label, group, and bundle deletion", async () => {
   const fetcher = vi.fn(async () => new Response(null, { status: 200 }) as any);
   const api = createApiClient("", fetcher as any);
 
   await expect(api.deleteInstanceLabel("i-1", "biz.openclaw.io/master")).resolves.toBeUndefined();
+  await expect(api.deleteGroup("g-1")).resolves.toBeUndefined();
   await expect(api.deleteSkillBundle("b-1")).resolves.toBeUndefined();
 
   expect(fetcher).toHaveBeenNthCalledWith(
@@ -47,6 +48,11 @@ test("UI API client uses POST alias for label and bundle deletion", async () => 
   );
   expect(fetcher).toHaveBeenNthCalledWith(
     2,
+    "/v1/groups/g-1/delete",
+    expect.objectContaining({ method: "POST" }),
+  );
+  expect(fetcher).toHaveBeenNthCalledWith(
+    3,
     "/v1/skill-bundles/b-1/delete",
     expect.objectContaining({ method: "POST" }),
   );

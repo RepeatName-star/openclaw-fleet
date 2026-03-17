@@ -38,7 +38,8 @@ export type ApiClient = {
   deleteGroup: (id: string) => Promise<void>;
   getGroupMatches: (id: string) => Promise<GroupMatchItem[]>;
 
-  listCampaigns: () => Promise<CampaignItem[]>;
+  listCampaigns: (filters?: { include_deleted?: boolean }) => Promise<CampaignItem[]>;
+  getCampaign: (id: string) => Promise<CampaignItem>;
   createCampaign: (data: {
     name: string;
     selector: string;
@@ -61,6 +62,7 @@ export type ApiClient = {
     },
   ) => Promise<CampaignItem>;
   closeCampaign: (id: string) => Promise<{ id: string; status: string; closed_at: string }>;
+  deleteCampaign: (id: string) => Promise<void>;
 
   listEvents: (filters?: {
     campaign_id?: string;
@@ -203,16 +205,25 @@ export function createApiClient(baseUrl = "", fetcher: Fetcher = fetch): ApiClie
       });
     },
     async deleteGroup(id: string) {
-      await request<{ ok: true }>(`/v1/groups/${id}`, { method: "DELETE" });
+      await request<{ ok: true }>(`/v1/groups/${id}/delete`, { method: "POST" });
     },
     async getGroupMatches(id: string) {
       const data = await request<{ items: GroupMatchItem[] }>(`/v1/groups/${id}/matches`);
       return data.items ?? [];
     },
 
-    async listCampaigns() {
-      const data = await request<{ items: CampaignItem[] }>("/v1/campaigns");
+    async listCampaigns(filters = {}) {
+      const params = new URLSearchParams(
+        Object.entries(filters)
+          .filter(([, value]) => value !== undefined && value !== null)
+          .map(([k, v]) => [k, String(v)]),
+      ).toString();
+      const suffix = params ? `?${params}` : "";
+      const data = await request<{ items: CampaignItem[] }>(`/v1/campaigns${suffix}`);
       return data.items ?? [];
+    },
+    async getCampaign(id: string) {
+      return request<CampaignItem>(`/v1/campaigns/${id}`);
     },
     async createCampaign(data: {
       name: string;
@@ -249,6 +260,11 @@ export function createApiClient(baseUrl = "", fetcher: Fetcher = fetch): ApiClie
     },
     async closeCampaign(id: string) {
       return request<{ id: string; status: string; closed_at: string }>(`/v1/campaigns/${id}/close`, {
+        method: "POST",
+      });
+    },
+    async deleteCampaign(id: string) {
+      await request<{ ok: true }>(`/v1/campaigns/${id}/delete`, {
         method: "POST",
       });
     },
