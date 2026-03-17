@@ -64,9 +64,6 @@ export function createOpenClawProvider(options: OpenClawProviderOptions): Sideca
         name: fileName,
         content: params.content,
       });
-      await gateway.request("sessions.reset", {
-        key: params.agentId,
-      });
     },
     async sessionReset(params: SessionResetParams) {
       await gateway.request("sessions.reset", params);
