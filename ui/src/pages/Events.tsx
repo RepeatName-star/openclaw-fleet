@@ -136,14 +136,19 @@ export default function EventsPage() {
         <div className="grid-two">
           <label>
             Campaign
-            <select value={campaignId} onChange={(event) => setCampaignId(event.target.value)}>
-              <option value="">(all)</option>
+            <input
+              list="campaign-options"
+              value={campaignId}
+              onChange={(event) => setCampaignId(event.target.value)}
+              placeholder="campaign id"
+            />
+            <datalist id="campaign-options">
               {campaigns.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name} ({c.id.slice(0, 8)})
                 </option>
               ))}
-            </select>
+            </datalist>
           </label>
           <label>
             Instance
