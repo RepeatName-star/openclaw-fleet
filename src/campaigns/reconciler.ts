@@ -155,6 +155,7 @@ export async function reconcileOpenCampaignsOnce(pool: Pool, deps: ReconcilerDep
 
       const evaluated = evaluateGate(
         {
+          action,
           online,
           gateway_reachable: inst.gateway_reachable,
           gateway_reachable_at: inst.gateway_reachable_at,
