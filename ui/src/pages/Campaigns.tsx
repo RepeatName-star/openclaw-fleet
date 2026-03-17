@@ -188,19 +188,28 @@ export default function CampaignsPage() {
     }
   }
 
-  function startEdit(c: CampaignItem) {
-    setEditing((prev) => ({
-      ...prev,
-      [c.id]: {
-        name: c.name,
-        selector: c.selector,
-        action: c.action,
-        payloadRaw: JSON.stringify(c.payload ?? {}, null, 2),
-        gateRaw: JSON.stringify(c.gate ?? {}, null, 2),
-        rolloutRaw: JSON.stringify(c.rollout ?? {}, null, 2),
-        expiresAt: c.expires_at ?? "",
-      },
-    }));
+  async function startEdit(c: CampaignItem) {
+    setBusy(true);
+    setError(null);
+    try {
+      const detail = await api.getCampaign(c.id);
+      setEditing((prev) => ({
+        ...prev,
+        [c.id]: {
+          name: detail.name,
+          selector: detail.selector,
+          action: detail.action,
+          payloadRaw: JSON.stringify(detail.payload ?? {}, null, 2),
+          gateRaw: JSON.stringify(detail.gate ?? {}, null, 2),
+          rolloutRaw: JSON.stringify(detail.rollout ?? {}, null, 2),
+          expiresAt: detail.expires_at ?? "",
+        },
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
   }
 
   function cancelEdit(id: string) {
@@ -459,7 +468,7 @@ export default function CampaignsPage() {
                       </button>
                     </>
                   ) : (
-                    <button type="button" className="ghost" disabled={busy} onClick={() => startEdit(c)}>
+                    <button type="button" className="ghost" disabled={busy} onClick={() => void startEdit(c)}>
                       编辑
                     </button>
                   )}

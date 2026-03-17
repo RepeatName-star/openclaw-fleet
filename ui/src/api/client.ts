@@ -39,6 +39,7 @@ export type ApiClient = {
   getGroupMatches: (id: string) => Promise<GroupMatchItem[]>;
 
   listCampaigns: () => Promise<CampaignItem[]>;
+  getCampaign: (id: string) => Promise<CampaignItem>;
   createCampaign: (data: {
     name: string;
     selector: string;
@@ -213,6 +214,9 @@ export function createApiClient(baseUrl = "", fetcher: Fetcher = fetch): ApiClie
     async listCampaigns() {
       const data = await request<{ items: CampaignItem[] }>("/v1/campaigns");
       return data.items ?? [];
+    },
+    async getCampaign(id: string) {
+      return request<CampaignItem>(`/v1/campaigns/${id}`);
     },
     async createCampaign(data: {
       name: string;
