@@ -92,3 +92,80 @@ test("PATCH /v1/campaigns/:id increments generation only when action/payload cha
   expect(patch2.statusCode).toBe(200);
   expect(patch2.json().generation).toBe(2);
 });
+
+test("DELETE /v1/campaigns/:id rejects open campaigns", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+  const pool = createTestPool(db);
+  const created = await pool.query(
+    "insert into campaigns (name, selector, action, payload) values ($1,$2,$3,$4) returning id",
+    ["c1", "biz.openclaw.io/team=a", "skills.status", {}],
+  );
+  const app = await buildServer({ pool, redis });
+
+  const res = await app.inject({
+    method: "DELETE",
+    url: `/v1/campaigns/${created.rows[0].id}`,
+  });
+
+  expect(res.statusCode).toBe(409);
+});
+
+test("DELETE /v1/campaigns/:id deletes closed campaign but preserves audit history", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+  const pool = createTestPool(db);
+  const created = await pool.query(
+    "insert into campaigns (name, selector, action, payload, status, closed_at) values ($1,$2,$3,$4,'closed',now()) returning id",
+    ["c1", "biz.openclaw.io/team=a", "skills.status", {}],
+  );
+  const campaignId = String(created.rows[0].id);
+  const artifact = await pool.query(
+    "insert into artifacts (kind, content) values ('task.payload', $1) returning id",
+    [{ task_id: "t1" }],
+  );
+  const artifactId = String(artifact.rows[0].id);
+  await pool.query(
+    "insert into events (event_type, campaign_id, campaign_generation, payload, artifact_id) values ('exec.finished', $1, 1, $2, $3)",
+    [campaignId, { task_id: "t1" }, artifactId],
+  );
+
+  const app = await buildServer({ pool, redis });
+
+  const res = await app.inject({
+    method: "DELETE",
+    url: `/v1/campaigns/${campaignId}`,
+  });
+  expect(res.statusCode).toBe(200);
+  expect(res.json()).toEqual({ ok: true });
+
+  const campaigns = await pool.query("select id from campaigns where id = $1", [campaignId]);
+  expect(campaigns.rowCount).toBe(0);
+
+  const events = await pool.query("select event_type, campaign_id, artifact_id from events where artifact_id = $1", [
+    artifactId,
+  ]);
+  expect(events.rowCount).toBe(1);
+  expect(events.rows[0].event_type).toBe("exec.finished");
+  expect(events.rows[0].campaign_id).toBeNull();
+  expect(String(events.rows[0].artifact_id)).toBe(artifactId);
+});
+
+test("POST /v1/campaigns/:id/delete matches delete semantics for closed campaigns", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+  const pool = createTestPool(db);
+  const created = await pool.query(
+    "insert into campaigns (name, selector, action, payload, status, closed_at) values ($1,$2,$3,$4,'closed',now()) returning id",
+    ["c1", "biz.openclaw.io/team=a", "skills.status", {}],
+  );
+  const app = await buildServer({ pool, redis });
+
+  const res = await app.inject({
+    method: "POST",
+    url: `/v1/campaigns/${created.rows[0].id}/delete`,
+  });
+
+  expect(res.statusCode).toBe(200);
+  expect(res.json()).toEqual({ ok: true });
+});

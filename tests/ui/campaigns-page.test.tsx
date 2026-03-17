@@ -165,3 +165,69 @@ test("campaign edit loads full detail before saving so existing json fields are 
     rollout: { maxParallel: 2 },
   });
 });
+
+test("campaigns page only shows delete for closed campaigns and uses post alias", async () => {
+  const requests: Array<{ url: string; method: string }> = [];
+
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+    requests.push({ url, method });
+
+    if (url === "/v1/campaigns" && method === "GET") {
+      return jsonResponse({
+        items: [
+          {
+            id: "c-open",
+            name: "open-one",
+            selector: "biz.openclaw.io/env=prod",
+            action: "agent.run",
+            generation: 1,
+            status: "open",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            closed_at: null,
+            expires_at: null,
+          },
+          {
+            id: "c-closed",
+            name: "closed-one",
+            selector: "biz.openclaw.io/env=prod",
+            action: "agent.run",
+            generation: 2,
+            status: "closed",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            closed_at: new Date().toISOString(),
+            expires_at: null,
+          },
+        ],
+      });
+    }
+
+    if (url === "/v1/groups" && method === "GET") {
+      return jsonResponse({ items: [] });
+    }
+
+    if (url === "/v1/campaigns/c-closed/delete" && method === "POST") {
+      return jsonResponse({ ok: true });
+    }
+
+    throw new Error(`unexpected ${method} ${url}`);
+  });
+  vi.stubGlobal("fetch", fetchMock);
+
+  render(<CampaignsPage />);
+
+  await screen.findByText("closed-one");
+
+  expect(screen.getByText("open-one")).toBeTruthy();
+  expect(screen.getByText("closed-one")).toBeTruthy();
+  expect(screen.getAllByRole("button", { name: "删除" })).toHaveLength(1);
+
+  fireEvent.click(screen.getByRole("button", { name: "删除" }));
+
+  await waitFor(() =>
+    expect(requests).toContainEqual({ url: "/v1/campaigns/c-closed/delete", method: "POST" }),
+  );
+});

@@ -260,6 +260,20 @@ export default function CampaignsPage() {
     }
   }
 
+  async function deleteCampaign(id: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.deleteCampaign(id);
+      cancelEdit(id);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function applyGroupSelector(nextGroupId: string) {
     setGroupId(nextGroupId);
     if (!nextGroupId) {
@@ -456,6 +470,11 @@ export default function CampaignsPage() {
                   {c.status === "open" ? (
                     <button type="button" className="ghost" disabled={busy} onClick={() => closeCampaign(c.id)}>
                       Close
+                    </button>
+                  ) : null}
+                  {c.status === "closed" ? (
+                    <button type="button" className="ghost" disabled={busy} onClick={() => deleteCampaign(c.id)}>
+                      删除
                     </button>
                   ) : null}
                   {isEditing ? (

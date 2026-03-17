@@ -62,6 +62,7 @@ export type ApiClient = {
     },
   ) => Promise<CampaignItem>;
   closeCampaign: (id: string) => Promise<{ id: string; status: string; closed_at: string }>;
+  deleteCampaign: (id: string) => Promise<void>;
 
   listEvents: (filters?: {
     campaign_id?: string;
@@ -253,6 +254,11 @@ export function createApiClient(baseUrl = "", fetcher: Fetcher = fetch): ApiClie
     },
     async closeCampaign(id: string) {
       return request<{ id: string; status: string; closed_at: string }>(`/v1/campaigns/${id}/close`, {
+        method: "POST",
+      });
+    },
+    async deleteCampaign(id: string) {
+      await request<{ ok: true }>(`/v1/campaigns/${id}/delete`, {
         method: "POST",
       });
     },

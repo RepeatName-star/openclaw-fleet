@@ -23,6 +23,26 @@ const PatchSchema = z.object({
 });
 
 export async function registerCampaignRoutes(app: FastifyInstance, opts: { pool?: Pool }) {
+  async function handleDelete(id: string, reply: any) {
+    if (!opts.pool) {
+      reply.code(500).send({ error: "server not configured" });
+      return;
+    }
+
+    const current = await opts.pool.query("select id, status from campaigns where id = $1", [id]);
+    if (!current.rowCount) {
+      reply.code(404).send({ error: "not found" });
+      return;
+    }
+    if (current.rows[0].status !== "closed") {
+      reply.code(409).send({ error: "campaign must be closed before delete" });
+      return;
+    }
+
+    await opts.pool.query("delete from campaigns where id = $1", [id]);
+    reply.send({ ok: true });
+  }
+
   app.get("/v1/campaigns", async (_req, reply) => {
     if (!opts.pool) {
       reply.code(500).send({ error: "server not configured" });
@@ -139,5 +159,15 @@ export async function registerCampaignRoutes(app: FastifyInstance, opts: { pool?
       return;
     }
     reply.send(res.rows[0]);
+  });
+
+  app.delete("/v1/campaigns/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    await handleDelete(id, reply);
+  });
+
+  app.post("/v1/campaigns/:id/delete", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    await handleDelete(id, reply);
   });
 }
