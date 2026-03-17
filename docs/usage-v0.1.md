@@ -73,6 +73,7 @@
 - `generation` 仅在 `action/payload` 变化时递增
 - `rollout` 字段可保存，但当前 reconciler 还不会按它做分批/限流
 - 删除后 Campaign 会从列表中隐藏，但历史事件仍可继续按原 `campaign_id` 检索
+- Events 页的 Campaign 筛选下拉会额外加载已软删除 Campaign，便于继续按历史 Campaign 检索事件
 
 selector 约束：
 - 必须填写完整合法的 K8s 风格 label selector。

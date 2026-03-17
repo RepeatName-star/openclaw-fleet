@@ -23,6 +23,16 @@ const PatchSchema = z.object({
   expires_at: z.string().datetime().optional(),
 });
 
+const ListQuerySchema = z.object({
+  include_deleted: z.union([z.string(), z.boolean()]).optional(),
+});
+
+function isTruthyFlag(value: string | boolean | undefined): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value !== "string") return false;
+  return value === "1" || value.toLowerCase() === "true";
+}
+
 export async function registerCampaignRoutes(app: FastifyInstance, opts: { pool?: Pool }) {
   async function handleDelete(id: string, reply: any) {
     if (!opts.pool) {
@@ -50,13 +60,18 @@ export async function registerCampaignRoutes(app: FastifyInstance, opts: { pool?
     reply.send({ ok: true });
   }
 
-  app.get("/v1/campaigns", async (_req, reply) => {
+  app.get("/v1/campaigns", async (request, reply) => {
     if (!opts.pool) {
       reply.code(500).send({ error: "server not configured" });
       return;
     }
+    const parsedQuery = ListQuerySchema.safeParse(request.query ?? {});
+    const includeDeleted = parsedQuery.success ? isTruthyFlag(parsedQuery.data.include_deleted) : false;
     const res = await opts.pool.query(
-      "select id, name, selector, action, generation, status, created_at, updated_at, closed_at, expires_at from campaigns where status <> 'deleted' order by created_at desc",
+      `select id, name, selector, action, generation, status, created_at, updated_at, closed_at, expires_at
+       from campaigns
+       ${includeDeleted ? "" : "where status <> 'deleted'"}
+       order by created_at desc`,
     );
     reply.send({ items: res.rows });
   });

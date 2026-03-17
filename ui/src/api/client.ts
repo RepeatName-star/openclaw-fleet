@@ -38,7 +38,7 @@ export type ApiClient = {
   deleteGroup: (id: string) => Promise<void>;
   getGroupMatches: (id: string) => Promise<GroupMatchItem[]>;
 
-  listCampaigns: () => Promise<CampaignItem[]>;
+  listCampaigns: (filters?: { include_deleted?: boolean }) => Promise<CampaignItem[]>;
   getCampaign: (id: string) => Promise<CampaignItem>;
   createCampaign: (data: {
     name: string;
@@ -212,8 +212,14 @@ export function createApiClient(baseUrl = "", fetcher: Fetcher = fetch): ApiClie
       return data.items ?? [];
     },
 
-    async listCampaigns() {
-      const data = await request<{ items: CampaignItem[] }>("/v1/campaigns");
+    async listCampaigns(filters = {}) {
+      const params = new URLSearchParams(
+        Object.entries(filters)
+          .filter(([, value]) => value !== undefined && value !== null)
+          .map(([k, v]) => [k, String(v)]),
+      ).toString();
+      const suffix = params ? `?${params}` : "";
+      const data = await request<{ items: CampaignItem[] }>(`/v1/campaigns${suffix}`);
       return data.items ?? [];
     },
     async getCampaign(id: string) {

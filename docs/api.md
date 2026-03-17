@@ -281,6 +281,9 @@ Campaign is the v0.1 batch execution object:
 
 ### GET /v1/campaigns
 
+Query:
+- `include_deleted=true|1` to include soft-deleted campaigns in the list. Default is to hide them.
+
 Response:
 ```json
 {

@@ -63,6 +63,27 @@ test("GET /v1/campaigns lists campaigns", async () => {
   expect(res.json().items[0].name).toBe("c1");
 });
 
+test("GET /v1/campaigns?include_deleted=true includes soft-deleted campaigns", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+  const pool = createTestPool(db);
+  await pool.query(
+    "insert into campaigns (name, selector, action, payload, status, closed_at) values ($1,$2,$3,$4,'deleted',now())",
+    ["c-deleted", "biz.openclaw.io/team=a", "skills.status", {}],
+  );
+  const app = await buildServer({ pool, redis });
+
+  const hidden = await app.inject({ method: "GET", url: "/v1/campaigns" });
+  expect(hidden.statusCode).toBe(200);
+  expect(hidden.json().items).toEqual([]);
+
+  const res = await app.inject({ method: "GET", url: "/v1/campaigns?include_deleted=true" });
+  expect(res.statusCode).toBe(200);
+  expect(res.json().items).toHaveLength(1);
+  expect(res.json().items[0].name).toBe("c-deleted");
+  expect(res.json().items[0].status).toBe("deleted");
+});
+
 test("POST /v1/campaigns/:id/close closes a campaign", async () => {
   const db = initTestDb();
   await runMigrations(db);
