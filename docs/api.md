@@ -352,7 +352,9 @@ Response:
 
 Notes:
 - Open campaigns return `409`.
-- Deleting a campaign removes the campaign control-plane object only; historical tasks, events, and artifacts are retained.
+- Deleted campaigns are hidden from `GET /v1/campaigns` and `GET /v1/campaigns/:id`.
+- Deleting a campaign keeps the underlying campaign id as a tombstone so historical `events?campaign_id=<id>` queries continue to work.
+- Historical tasks, events, and artifacts are retained.
 
 ### POST /v1/campaigns/:id/delete
 

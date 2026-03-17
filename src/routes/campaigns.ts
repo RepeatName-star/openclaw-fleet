@@ -29,7 +29,10 @@ export async function registerCampaignRoutes(app: FastifyInstance, opts: { pool?
       return;
     }
 
-    const current = await opts.pool.query("select id, status from campaigns where id = $1", [id]);
+    const current = await opts.pool.query(
+      "select id, status from campaigns where id = $1 and status <> 'deleted'",
+      [id],
+    );
     if (!current.rowCount) {
       reply.code(404).send({ error: "not found" });
       return;
@@ -39,7 +42,10 @@ export async function registerCampaignRoutes(app: FastifyInstance, opts: { pool?
       return;
     }
 
-    await opts.pool.query("delete from campaigns where id = $1", [id]);
+    await opts.pool.query(
+      "update campaigns set status = 'deleted', updated_at = now() where id = $1",
+      [id],
+    );
     reply.send({ ok: true });
   }
 
@@ -49,7 +55,7 @@ export async function registerCampaignRoutes(app: FastifyInstance, opts: { pool?
       return;
     }
     const res = await opts.pool.query(
-      "select id, name, selector, action, generation, status, created_at, updated_at, closed_at, expires_at from campaigns order by created_at desc",
+      "select id, name, selector, action, generation, status, created_at, updated_at, closed_at, expires_at from campaigns where status <> 'deleted' order by created_at desc",
     );
     reply.send({ items: res.rows });
   });
@@ -85,7 +91,10 @@ export async function registerCampaignRoutes(app: FastifyInstance, opts: { pool?
       return;
     }
     const { id } = request.params as { id: string };
-    const res = await opts.pool.query("select * from campaigns where id = $1", [id]);
+    const res = await opts.pool.query(
+      "select * from campaigns where id = $1 and status <> 'deleted'",
+      [id],
+    );
     if (!res.rowCount) {
       reply.code(404).send({ error: "not found" });
       return;
@@ -107,7 +116,7 @@ export async function registerCampaignRoutes(app: FastifyInstance, opts: { pool?
     const { id } = request.params as { id: string };
 
     const current = await opts.pool.query(
-      "select id, action, payload, generation from campaigns where id = $1",
+      "select id, action, payload, generation from campaigns where id = $1 and status <> 'deleted'",
       [id],
     );
     if (!current.rowCount) {
@@ -128,7 +137,7 @@ export async function registerCampaignRoutes(app: FastifyInstance, opts: { pool?
     }
 
     const res = await opts.pool.query(
-      "update campaigns set name = coalesce($2, name), selector = coalesce($3, selector), action = coalesce($4, action), payload = coalesce($5, payload), gate = coalesce($6, gate), rollout = coalesce($7, rollout), expires_at = coalesce($8, expires_at), generation = $9, updated_at = now() where id = $1 returning *",
+      "update campaigns set name = coalesce($2, name), selector = coalesce($3, selector), action = coalesce($4, action), payload = coalesce($5, payload), gate = coalesce($6, gate), rollout = coalesce($7, rollout), expires_at = coalesce($8, expires_at), generation = $9, updated_at = now() where id = $1 and status <> 'deleted' returning *",
       [
         id,
         parsed.data.name ?? null,

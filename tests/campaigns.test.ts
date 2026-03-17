@@ -111,7 +111,7 @@ test("DELETE /v1/campaigns/:id rejects open campaigns", async () => {
   expect(res.statusCode).toBe(409);
 });
 
-test("DELETE /v1/campaigns/:id deletes closed campaign but preserves audit history", async () => {
+test("DELETE /v1/campaigns/:id hides closed campaign but preserves event filtering", async () => {
   const db = initTestDb();
   await runMigrations(db);
   const pool = createTestPool(db);
@@ -139,16 +139,31 @@ test("DELETE /v1/campaigns/:id deletes closed campaign but preserves audit histo
   expect(res.statusCode).toBe(200);
   expect(res.json()).toEqual({ ok: true });
 
-  const campaigns = await pool.query("select id from campaigns where id = $1", [campaignId]);
-  expect(campaigns.rowCount).toBe(0);
+  const campaigns = await app.inject({ method: "GET", url: "/v1/campaigns" });
+  expect(campaigns.statusCode).toBe(200);
+  expect(campaigns.json().items).toEqual([]);
+
+  const campaignDetail = await app.inject({
+    method: "GET",
+    url: `/v1/campaigns/${campaignId}`,
+  });
+  expect(campaignDetail.statusCode).toBe(404);
 
   const events = await pool.query("select event_type, campaign_id, artifact_id from events where artifact_id = $1", [
     artifactId,
   ]);
   expect(events.rowCount).toBe(1);
   expect(events.rows[0].event_type).toBe("exec.finished");
-  expect(events.rows[0].campaign_id).toBeNull();
+  expect(events.rows[0].campaign_id).toBe(campaignId);
   expect(String(events.rows[0].artifact_id)).toBe(artifactId);
+
+  const filteredEvents = await app.inject({
+    method: "GET",
+    url: `/v1/events?campaign_id=${campaignId}`,
+  });
+  expect(filteredEvents.statusCode).toBe(200);
+  expect(filteredEvents.json().items).toHaveLength(1);
+  expect(filteredEvents.json().items[0].campaign_id).toBe(campaignId);
 });
 
 test("POST /v1/campaigns/:id/delete matches delete semantics for closed campaigns", async () => {

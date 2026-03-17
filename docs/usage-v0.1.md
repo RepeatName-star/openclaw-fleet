@@ -72,6 +72,7 @@
 - blocked 实例持续保留，条件满足后自动补齐
 - `generation` 仅在 `action/payload` 变化时递增
 - `rollout` 字段可保存，但当前 reconciler 还不会按它做分批/限流
+- 删除后 Campaign 会从列表中隐藏，但历史事件仍可继续按原 `campaign_id` 检索
 
 当前 Gate 依赖的 Fact：
 - `online`

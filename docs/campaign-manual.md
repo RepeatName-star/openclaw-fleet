@@ -84,6 +84,8 @@
 - 不删除历史 tasks
 - 不删除历史 events
 - 不删除历史 artifacts
+- 已删除 Campaign 会从列表和详情接口中隐藏
+- 但底层会保留一个 tombstone，使历史事件仍可按原 `campaign_id` 检索
 
 这意味着：
 
