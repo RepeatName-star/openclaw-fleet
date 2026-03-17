@@ -205,7 +205,7 @@ export function createApiClient(baseUrl = "", fetcher: Fetcher = fetch): ApiClie
       });
     },
     async deleteGroup(id: string) {
-      await request<{ ok: true }>(`/v1/groups/${id}`, { method: "DELETE" });
+      await request<{ ok: true }>(`/v1/groups/${id}/delete`, { method: "POST" });
     },
     async getGroupMatches(id: string) {
       const data = await request<{ items: GroupMatchItem[] }>(`/v1/groups/${id}/matches`);

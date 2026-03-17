@@ -117,6 +117,21 @@ export async function registerGroupsRoutes(app: FastifyInstance, opts: GroupsRou
     reply.send({ ok: true });
   });
 
+  app.post("/v1/groups/:id/delete", async (request, reply) => {
+    return app.inject({
+      method: "DELETE",
+      url: `/v1/groups/${(request.params as { id: string }).id}`,
+    }).then((res) => {
+      reply.code(res.statusCode);
+      for (const [key, value] of Object.entries(res.headers)) {
+        if (value !== undefined) {
+          reply.header(key, value as string);
+        }
+      }
+      reply.send(res.json());
+    });
+  });
+
   app.get("/v1/groups/:id/matches", async (request, reply) => {
     if (!opts.pool) {
       reply.code(500).send({ error: "server not configured" });

@@ -253,6 +253,10 @@ Request:
 
 ### DELETE /v1/groups/:id
 
+### POST /v1/groups/:id/delete
+
+Browser-safe alias for group deletion.
+
 ### GET /v1/groups/:id/matches
 
 Response:
@@ -447,8 +451,8 @@ Response:
 
 Notes:
 - Direct task creation immediately emits an `exec.queued` event with a redacted payload summary and a raw `task.payload` artifact.
-- `target_type="group"` still exists for backward compatibility and uses the legacy `group_instances` membership mapping.
-- In v0.1, **Groups are named selectors**, not memberships. Prefer **Campaigns** for batch execution.
+- `target_type="group"` is rejected in v0.1.1.
+- In v0.1, **Groups are named selectors**, not memberships. Use **Campaigns** for batch execution.
 
 ### GET /v1/tasks
 

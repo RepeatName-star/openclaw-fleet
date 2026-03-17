@@ -29,6 +29,10 @@ export async function registerTasksAdminRoutes(app: FastifyInstance, opts: Tasks
       reply.code(400).send({ error: "invalid payload" });
       return;
     }
+    if (parsed.data.target_type !== "instance") {
+      reply.code(400).send({ error: "target_type group is no longer supported; use campaigns" });
+      return;
+    }
 
     const payload = parsed.data.payload ?? {};
     const res = await opts.pool.query(
