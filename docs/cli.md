@@ -277,11 +277,22 @@ pnpm fleet:cli:ts --base-url http://127.0.0.1:3000 campaign create \
 
 - `skills.update`（启停/配置某个 skill，payload 具体字段取决于 OpenClaw Gateway 定义）
 
+- `fleet.config_patch`（批量改配置的默认入口，Sidecar 会自动执行 `config.get -> config.patch`）
+```bash
+pnpm fleet:cli:ts --base-url http://127.0.0.1:3000 campaign create \
+  --name switch-default-model \
+  --selector 'biz.openclaw.io/env=prod' \
+  --action fleet.config_patch \
+  --payload-json '{"raw":"{\n  \"models\": {\n    \"default\": \"zai/glm-5-turbo\"\n  }\n}","note":"switch default model","restartDelayMs":500}'
+```
+
 - `agent.run`（投递一条消息给 agent）
 
 - `memory.replace`（只替换 agent memory 文件；如需 reset，要再单独下发 `session.reset`）
 
 补充说明：
+- `fleet.config_patch` 适合批量配置变更；不会要求你提前收集每台实例的 `baseHash`。
+- `config.patch` 仍然可用，但更适合专家模式或单机 compare-and-swap 操作。
 - `rollout` 字段当前只是保存，不会改变调度节奏。
 - 批量执行统一走 `Campaign`；CLI 没有 `group` direct task 模式。
 

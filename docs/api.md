@@ -501,8 +501,12 @@ Response:
 
 Notes:
 - Direct task creation immediately emits an `exec.queued` event with a redacted payload summary and a raw `task.payload` artifact.
+- For `fleet.config_patch`, `payload.raw` is redacted in the event but preserved in the artifact.
 - `target_type="group"` is rejected in v0.1.1.
 - In v0.1, **Groups are named selectors**, not memberships. Use **Campaigns** for batch execution.
+- Recommended config-edit path:
+  - `fleet.config_patch` for normal Fleet-driven batch changes
+  - raw `config.patch` only when the caller wants to manage `baseHash` manually
 
 ### GET /v1/tasks
 

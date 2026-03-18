@@ -21,6 +21,27 @@ const ACTION_DOCS: Record<
     example: "{}",
     note: "探测 gateway 可达性与 OpenClaw 版本；无需额外参数。",
   },
+  "fleet.config_patch": {
+    title: "fleet.config_patch payload",
+    example: JSON.stringify(
+      {
+        raw: JSON.stringify(
+          {
+            models: {
+              default: "zai/glm-5-turbo",
+            },
+          },
+          null,
+          2,
+        ),
+        note: "switch default model",
+        restartDelayMs: 500,
+      },
+      null,
+      2,
+    ),
+    note: "自动通过 config.get 获取每台实例当前 hash，再调用原生 config.patch；这是批量改配置的默认入口。",
+  },
   "fleet.skill_bundle.install": {
     title: "fleet.skill_bundle.install payload",
     example: JSON.stringify({ bundleId: "<bundleId>", name: "demo-skill", sha256: "<sha256>" }, null, 2),
@@ -57,7 +78,7 @@ const ACTION_DOCS: Record<
       null,
       2,
     ),
-    note: "raw 必须是字符串形式的 JSON/JSON5 片段；当实例已有配置时必须传入 config.get 返回的 hash 作为 baseHash。",
+    note: "低层 expert 接口。raw 必须是字符串形式的 JSON/JSON5 片段；当实例已有配置时必须传入 config.get 返回的 hash 作为 baseHash。",
   },
   "memory.replace": {
     title: "memory.replace payload",
@@ -324,6 +345,7 @@ export default function CampaignsPage() {
               <select value={action} onChange={(event) => setAction(event.target.value)}>
                 <option value="skills.status">skills.status</option>
                 <option value="fleet.gateway.probe">fleet.gateway.probe</option>
+                <option value="fleet.config_patch">fleet.config_patch</option>
                 <option value="fleet.skill_bundle.install">fleet.skill_bundle.install</option>
                 <option value="skills.update">skills.update</option>
                 <option value="skills.install">skills.install</option>

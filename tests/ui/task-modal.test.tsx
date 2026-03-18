@@ -45,4 +45,11 @@ test("task modal supports probe and bundle install actions", () => {
   expect(getByLabelText("Bundle ID")).toBeTruthy();
   expect(getByLabelText("Bundle Name")).toBeTruthy();
   expect(getByLabelText("Bundle SHA256")).toBeTruthy();
+
+  fireEvent.change(actionSelect, { target: { value: "fleet.config_patch" } });
+  expect(getByLabelText("Patch Raw")).toBeTruthy();
+  expect(getByLabelText("Note")).toBeTruthy();
+  expect(getByLabelText("Session Key")).toBeTruthy();
+  expect(getByLabelText("Restart Delay (ms)")).toBeTruthy();
+  expect(getByText(/无需手动填写 baseHash/i)).toBeTruthy();
 });

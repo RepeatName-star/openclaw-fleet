@@ -3,6 +3,7 @@ import path from "node:path";
 import type {
   ConfigGetParams,
   ConfigPatchParams,
+  FleetConfigPatchParams,
   GatewayProbeParams,
   MemoryReplaceParams,
   SessionResetParams,
@@ -12,6 +13,7 @@ import type {
   SkillsStatusParams,
   AgentRunParams,
 } from "./providers/types.js";
+import { applyFleetConfigPatch } from "./config-patch.js";
 import { installSkillBundle } from "./skill-bundles/install.js";
 
 type Task = {
@@ -78,6 +80,8 @@ export function createExecutor(options: ExecutorOptions) {
       }
       case "config.get":
         return provider.configGet(task.payload as ConfigGetParams);
+      case "fleet.config_patch":
+        return applyFleetConfigPatch(provider, task.payload as FleetConfigPatchParams);
       case "config.patch":
         return provider.configPatch(task.payload as ConfigPatchParams);
       case "skills.install":
