@@ -75,7 +75,9 @@ test("events page lists deleted campaigns in the filter dropdown", async () => {
 
   const campaignField = await screen.findByLabelText("Campaign");
   expect(campaignField.tagName).toBe("SELECT");
-  expect(screen.getByRole("option", { name: "deleted-campaign [deleted] (c-delete)" })).toBeTruthy();
+  expect(
+    await screen.findByRole("option", { name: "deleted-campaign [deleted] (c-delete)" }),
+  ).toBeTruthy();
 
   fireEvent.change(campaignField, { target: { value: "c-deleted" } });
   fireEvent.click(screen.getByRole("button", { name: "查询" }));
