@@ -19,6 +19,7 @@ const ACTIONS = [
   "skills.install",
   "skills.status",
   "fleet.gateway.probe",
+  "fleet.config_patch",
   "fleet.skill_bundle.install",
 ] as const;
 
@@ -53,6 +54,10 @@ export default function TaskModal({
   const [bundleId, setBundleId] = useState("");
   const [bundleName, setBundleName] = useState("");
   const [bundleSha256, setBundleSha256] = useState("");
+  const [configPatchRaw, setConfigPatchRaw] = useState("");
+  const [configPatchNote, setConfigPatchNote] = useState("");
+  const [configPatchSessionKey, setConfigPatchSessionKey] = useState("");
+  const [configPatchRestartDelayMs, setConfigPatchRestartDelayMs] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const prevOpen = useRef(false);
@@ -80,6 +85,10 @@ export default function TaskModal({
     setBundleId("");
     setBundleName("");
     setBundleSha256("");
+    setConfigPatchRaw("");
+    setConfigPatchNote("");
+    setConfigPatchSessionKey("");
+    setConfigPatchRestartDelayMs("");
   }, [open, defaultTargetId, initialAction, instances]);
 
   if (!open) {
@@ -140,6 +149,15 @@ export default function TaskModal({
         };
       } else if (action === "fleet.gateway.probe") {
         payload = {};
+      } else if (action === "fleet.config_patch") {
+        payload = {
+          raw: configPatchRaw,
+          note: configPatchNote || undefined,
+          sessionKey: configPatchSessionKey || undefined,
+          restartDelayMs: configPatchRestartDelayMs
+            ? Number(configPatchRestartDelayMs)
+            : undefined,
+        };
       } else if (action === "fleet.skill_bundle.install") {
         payload = { bundleId, name: bundleName, sha256: bundleSha256 };
       }
@@ -295,6 +313,42 @@ export default function TaskModal({
 
           {action === "fleet.gateway.probe" ? (
             <div className="hint">无需额外参数。</div>
+          ) : null}
+
+          {action === "fleet.config_patch" ? (
+            <div className="grid-two">
+              <label className="span-two">
+                Patch Raw
+                <textarea
+                  value={configPatchRaw}
+                  onChange={(event) => setConfigPatchRaw(event.target.value)}
+                />
+              </label>
+              <label>
+                Note
+                <input
+                  value={configPatchNote}
+                  onChange={(event) => setConfigPatchNote(event.target.value)}
+                />
+              </label>
+              <label>
+                Session Key
+                <input
+                  value={configPatchSessionKey}
+                  onChange={(event) => setConfigPatchSessionKey(event.target.value)}
+                />
+              </label>
+              <label>
+                Restart Delay (ms)
+                <input
+                  value={configPatchRestartDelayMs}
+                  onChange={(event) => setConfigPatchRestartDelayMs(event.target.value)}
+                />
+              </label>
+              <div className="span-two hint">
+                Fleet 会先执行 <span className="mono">config.get</span>，无需手动填写 baseHash。
+              </div>
+            </div>
           ) : null}
 
           {action === "fleet.skill_bundle.install" ? (

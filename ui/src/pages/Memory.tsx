@@ -11,7 +11,6 @@ export default function MemoryPage() {
   const [fileName, setFileName] = useState("MEMORY.md");
   const [content, setContent] = useState("");
   const [patchRaw, setPatchRaw] = useState("");
-  const [baseHash, setBaseHash] = useState("");
   const [note, setNote] = useState("");
   const [sessionKey, setSessionKey] = useState("");
   const [restartDelayMs, setRestartDelayMs] = useState("");
@@ -59,10 +58,9 @@ export default function MemoryPage() {
         await api.createTask({
           target_type: "instance",
           target_id: targetId,
-          action: "config.patch",
+          action: "fleet.config_patch",
           payload: {
             raw: patchRaw,
-            baseHash: baseHash || undefined,
             note: note || undefined,
             sessionKey: sessionKey || undefined,
             restartDelayMs: restartDelayMs ? Number(restartDelayMs) : undefined,
@@ -146,10 +144,6 @@ export default function MemoryPage() {
           </label>
           <div className="grid-two">
             <label>
-              Base Hash (可选)
-              <input value={baseHash} onChange={(event) => setBaseHash(event.target.value)} />
-            </label>
-            <label>
               Note (可选)
               <input value={note} onChange={(event) => setNote(event.target.value)} />
             </label>
@@ -164,6 +158,10 @@ export default function MemoryPage() {
                 onChange={(event) => setRestartDelayMs(event.target.value)}
               />
             </label>
+          </div>
+          <div className="hint">
+            Fleet 会先执行 <span className="mono">config.get</span> 并自动带上每台实例自己的
+            <span className="mono"> baseHash</span>。
           </div>
         </div>
       )}

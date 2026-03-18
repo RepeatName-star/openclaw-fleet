@@ -107,3 +107,46 @@ test("reconciler marks target as removed if instance leaves selector scope; re-e
   const tasks = await pool.query("select id from tasks");
   expect(tasks.rows).toHaveLength(1);
 });
+
+test("reconciler redacts config patch raw in exec.queued events", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+  const pool = createTestPool(db);
+
+  const instance = await pool.query("insert into instances (name) values ('i1') returning id");
+  const instanceId = String(instance.rows[0].id);
+  await pool.query(
+    "insert into instance_labels (instance_id, key, value, source) values ($1,$2,$3,$4)",
+    [instanceId, "biz.openclaw.io/team", "a", "business"],
+  );
+  const now = new Date();
+  await pool.query(
+    "update instances set gateway_reachable = true, gateway_reachable_at = $2 where id = $1",
+    [instanceId, now],
+  );
+  await pool.query(
+    "insert into campaigns (name, selector, action, payload) values ($1,$2,$3,$4)",
+    [
+      "c1",
+      "biz.openclaw.io/team=a",
+      "fleet.config_patch",
+      { raw: "{\"models\":{\"default\":\"zai/glm-5-turbo\"}}", note: "switch model" },
+    ],
+  );
+
+  await reconcileOpenCampaignsOnce(pool, { getOnline: async () => true });
+
+  const events = await pool.query(
+    "select event_type, payload, artifact_id from events where event_type = 'exec.queued'",
+  );
+  expect(events.rowCount).toBe(1);
+  expect(events.rows[0].payload.payload.raw).toMatch(/\[sha256:/);
+
+  const artifacts = await pool.query("select content from artifacts where id = $1", [
+    events.rows[0].artifact_id,
+  ]);
+  expect(artifacts.rowCount).toBe(1);
+  expect(artifacts.rows[0].content.payload.raw).toBe(
+    "{\"models\":{\"default\":\"zai/glm-5-turbo\"}}",
+  );
+});

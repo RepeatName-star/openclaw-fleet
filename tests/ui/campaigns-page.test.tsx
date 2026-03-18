@@ -75,6 +75,11 @@ test("campaigns page shows action-specific payload guidance", async () => {
   fireEvent.change(actionSelect, { target: { value: "agent.run" } });
   expect(await screen.findByText(/agent\.run payload/i)).toBeTruthy();
   expect(screen.getByText(/"message"/)).toBeTruthy();
+
+  fireEvent.change(actionSelect, { target: { value: "fleet.config_patch" } });
+  expect(await screen.findByText(/fleet\.config_patch payload/i)).toBeTruthy();
+  expect(screen.getByText(/自动通过 config\.get 获取每台实例当前 hash/i)).toBeTruthy();
+  expect(screen.getByText(/"raw"/)).toBeTruthy();
 });
 
 test("campaigns page starts with empty selector instead of invalid prefix fragment", async () => {

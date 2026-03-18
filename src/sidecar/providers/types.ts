@@ -6,6 +6,8 @@ export type ConfigPatchParams = {
   restartDelayMs?: number;
 };
 
+export type FleetConfigPatchParams = Omit<ConfigPatchParams, "baseHash">;
+
 export type ConfigGetParams = Record<string, never>;
 export type ConfigGetResult = { baseHash?: string; hash?: string } & Record<string, unknown>;
 

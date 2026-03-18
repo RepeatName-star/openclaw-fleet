@@ -21,7 +21,10 @@ type ReconcilerDeps = {
   getOnline?: (instanceId: string) => Promise<boolean>;
 };
 
-const DEFAULT_EVENT_SENSITIVE_PATHS = [["payload", "message"]];
+const DEFAULT_EVENT_SENSITIVE_PATHS = [
+  ["payload", "message"],
+  ["payload", "raw"],
+];
 
 export async function reconcileOpenCampaignsOnce(pool: Pool, deps: ReconcilerDeps = {}): Promise<void> {
   const campaignsRes = await pool.query(

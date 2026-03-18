@@ -16,7 +16,10 @@ type TasksAdminOptions = {
   pool?: Pool;
 };
 
-const TASK_EVENT_SENSITIVE_PATHS = [["payload", "message"]];
+const TASK_EVENT_SENSITIVE_PATHS = [
+  ["payload", "message"],
+  ["payload", "raw"],
+];
 
 export async function registerTasksAdminRoutes(app: FastifyInstance, opts: TasksAdminOptions) {
   app.post("/v1/tasks", async (request, reply) => {

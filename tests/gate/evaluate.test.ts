@@ -97,6 +97,25 @@ test("evaluateGate allows session.reset without skills snapshot", () => {
   expect(res.ok).toBe(true);
 });
 
+test("evaluateGate allows fleet.config_patch without skills snapshot", () => {
+  const now = new Date("2026-03-11T00:00:00Z");
+  const res = evaluateGate(
+    {
+      action: "fleet.config_patch",
+      online: true,
+      gateway_reachable: true,
+      gateway_reachable_at: now,
+      openclaw_version: null,
+      openclaw_version_at: null,
+      skills_snapshot_at: null,
+      skills_snapshot_invalidated_at: null,
+    },
+    { minVersion: "0000.0.0" },
+    now,
+  );
+  expect(res.ok).toBe(true);
+});
+
 test("evaluateGate allows fleet.gateway.probe without prior gateway or version facts", () => {
   const now = new Date("2026-03-11T00:00:00Z");
   const res = evaluateGate(

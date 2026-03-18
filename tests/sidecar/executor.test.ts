@@ -39,3 +39,77 @@ test("executor preserves agent.run result for ack", async () => {
     result: { text: "Today is Monday." },
   });
 });
+
+test("executor auto-resolves baseHash for fleet.config_patch", async () => {
+  const state = { executed: {} } as any;
+  const calls: string[] = [];
+  const provider = {
+    configGet: async () => {
+      calls.push("get");
+      return { hash: "h1" };
+    },
+    configPatch: async (params: any) => {
+      calls.push(`patch:${params.baseHash}`);
+      expect(params).toMatchObject({
+        raw: "{\"models\":{\"default\":\"zai/glm-5-turbo\"}}",
+        baseHash: "h1",
+        note: "switch model",
+        sessionKey: "agent:main:main",
+        restartDelayMs: 250,
+      });
+    },
+  } as any;
+
+  const exec = createExecutor({ provider, state });
+  const res = await exec.run([
+    {
+      id: "t4",
+      action: "fleet.config_patch",
+      payload: {
+        raw: "{\"models\":{\"default\":\"zai/glm-5-turbo\"}}",
+        note: "switch model",
+        sessionKey: "agent:main:main",
+        restartDelayMs: 250,
+      },
+    },
+  ]);
+
+  expect(res.failed).toBe(0);
+  expect(res.processed).toBe(1);
+  expect(calls).toEqual(["get", "patch:h1"]);
+});
+
+test("executor retries fleet.config_patch once on stale hash errors", async () => {
+  const state = { executed: {} } as any;
+  const calls: string[] = [];
+  let patchCalls = 0;
+  const provider = {
+    configGet: async () => {
+      const hash = calls.length === 0 ? "h1" : "h2";
+      calls.push(`get:${hash}`);
+      return { hash };
+    },
+    configPatch: async (params: any) => {
+      patchCalls += 1;
+      calls.push(`patch:${params.baseHash}`);
+      if (patchCalls === 1) {
+        throw new Error("config changed since last load; re-run config.get and retry");
+      }
+    },
+  } as any;
+
+  const exec = createExecutor({ provider, state });
+  const res = await exec.run([
+    {
+      id: "t5",
+      action: "fleet.config_patch",
+      payload: {
+        raw: "{\"models\":{\"default\":\"zai/glm-5-turbo\"}}",
+      },
+    },
+  ]);
+
+  expect(res.failed).toBe(0);
+  expect(res.processed).toBe(1);
+  expect(calls).toEqual(["get:h1", "patch:h1", "get:h2", "patch:h2"]);
+});

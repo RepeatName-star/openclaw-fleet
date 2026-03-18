@@ -247,7 +247,45 @@ payload：
 - `installId`: 必填，上游安装请求 ID
 - `timeoutMs`: 可选，最小 1000
 
-### 3.6 `config.patch`
+### 3.6 `fleet.config_patch`
+
+适用：
+- Direct task
+- Campaign
+
+payload：
+```json
+{
+  "raw": "{\n  \"models\": {\n    \"default\": \"zai/glm-5-turbo\"\n  }\n}",
+  "note": "switch default model",
+  "sessionKey": "agent:main:main",
+  "restartDelayMs": 500
+}
+```
+
+字段说明：
+- `raw`: 必填，字符串形式的 JSON / JSON5 patch
+- `note`: 可选
+- `sessionKey`: 可选
+- `restartDelayMs`: 可选
+
+预期效果：
+- Sidecar 先调用每台实例各自的 `config.get`
+- 自动读取该实例当前配置的 `hash/baseHash`
+- 再调用原生 `config.patch`
+- 如果遇到 OpenClaw 的 stale-hash 冲突，会自动重新 `config.get` 后重试一次
+
+Merge Patch 语义：
+- 对象递归合并
+- `null` 删除字段
+- 数组默认整体替换
+- 若数组元素是带 `id` 的对象，则按 `id` 合并
+
+运营建议：
+- 这才是 Fleet 里“批量改配置”的默认入口。
+- 例如批量切换默认模型时，优先使用这个 action，而不是手动准备每台实例的 `baseHash`。
+
+### 3.7 `config.patch`
 
 适用：
 - Direct task
@@ -271,7 +309,11 @@ payload：
 - `sessionKey`: 可选
 - `restartDelayMs`: 可选
 
-### 3.7 `memory.replace`
+说明：
+- 这是低层 expert 接口。
+- 只有在你明确要自己控制 `baseHash` / compare-and-swap 语义时，才直接使用它。
+
+### 3.8 `memory.replace`
 
 适用：
 - Direct task
@@ -298,7 +340,7 @@ payload：
 如果你需要重置会话：
 - 请显式再下发一次 `session.reset`
 
-### 3.8 `session.reset`
+### 3.9 `session.reset`
 
 适用：
 - Direct task
@@ -319,7 +361,7 @@ payload：
 - 如果传错 key，可能 reset 的不是你以为的会话
 - 对 Campaign 而言，只适合所有目标实例都共享同名 session key 的场景
 
-### 3.9 `agent.run`
+### 3.10 `agent.run`
 
 适用：
 - Direct task

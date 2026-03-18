@@ -193,7 +193,7 @@
     - `skills.install`
     - `skills.update`
     - `fleet.skill_bundle.install`
-  - `agent.run` / `session.reset` / `memory.replace` / `fleet.gateway.probe` 不会因为 `skills_snapshot` 缺失或过期被误拦。
+  - `agent.run` / `session.reset` / `memory.replace` / `fleet.config_patch` / `fleet.gateway.probe` 不会因为 `skills_snapshot` 缺失或过期被误拦。
 
 ### 5.4 关键边界
 
@@ -292,7 +292,39 @@ payload：
 建议：
 - 这是批量分发 skill 的首选 action。
 
-### 7.4 `skills.update`
+### 7.4 `fleet.config_patch`
+
+用途：
+- 用 Fleet 的高层包装动作批量修改 OpenClaw 配置
+
+payload：
+
+```json
+{
+  "raw": "{\n  \"models\": {\n    \"default\": \"zai/glm-5-turbo\"\n  }\n}",
+  "note": "switch default model",
+  "sessionKey": "agent:main:main",
+  "restartDelayMs": 500
+}
+```
+
+预期效果：
+- Sidecar 先对每台实例执行 `config.get`
+- 自动读取该实例自己的 `hash/baseHash`
+- 再调用 OpenClaw 原生 `config.patch`
+- 如果第一次 patch 遇到 stale-hash 冲突，会自动重新 `config.get` 后重试一次
+
+Merge Patch 语义：
+- 对象递归合并
+- `null` 删除字段
+- 数组默认整体替换
+- 数组元素若是带 `id` 的对象，则按 `id` 合并
+
+运营建议：
+- 这是 Fleet 里批量改配置的默认入口。
+- 例如要批量切换后端模型到 `zai/glm-5-turbo`，优先用这个 action。
+
+### 7.5 `skills.update`
 
 用途：
 - 修改已有 skill 的启用状态、apiKey 或 env
@@ -316,7 +348,7 @@ payload：
 - `apiKey` 可选，空字符串表示清空
 - `env` 可选，value 为空字符串表示清空该 env
 
-### 7.5 `skills.install`
+### 7.6 `skills.install`
 
 用途：
 - 调用 OpenClaw 原生远程技能安装逻辑
@@ -336,7 +368,7 @@ payload：
 - `installId` 必填
 - `timeoutMs` 可选，最小 1000
 
-### 7.6 `config.patch`
+### 7.7 `config.patch`
 
 用途：
 - 远程调用 OpenClaw Gateway 的 `config.patch`
@@ -378,9 +410,10 @@ payload：
 - `config.patch` 很强，但不适合做“随手批量改配置”的默认工具。
 - 因为 `baseHash` 是按实例当前配置生成的：
   - 同一个 payload 发给一组配置不一致的实例时，可能失败。
+- 如果你的目标只是批量改配置，优先使用 `fleet.config_patch`。
 - 如果你的目标只是分发 skill 目录，优先使用 `fleet.skill_bundle.install`，不要直接手写 `config.patch`。
 
-### 7.7 `memory.replace`
+### 7.8 `memory.replace`
 
 用途：
 - 覆盖 agent memory 文件
@@ -404,7 +437,7 @@ payload：
 - v0.1.1 起，`memory.replace` 不再隐式 reset session。
 - 如果你想重置会话，请再显式下发一次 `session.reset`。
 
-### 7.8 `session.reset`
+### 7.9 `session.reset`
 
 用途：
 - 重置指定 session
@@ -421,7 +454,7 @@ payload：
 - `key` 必填
 - 对 `Campaign` 而言，只适合所有目标实例都共享同名 session key 的场景
 
-### 7.9 `agent.run`
+### 7.10 `agent.run`
 
 用途：
 - 批量让目标实例执行一次 agent run，并等待最终结果
