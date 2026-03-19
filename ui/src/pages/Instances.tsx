@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createApiClient } from "../api/client";
 import type { InstanceSummary } from "../types";
 import Filters from "../components/Filters";
+import Pagination from "../components/Pagination";
 import TaskModal from "../components/TaskModal";
 import { usePolling } from "../hooks/usePolling.js";
 
@@ -87,27 +88,7 @@ export default function InstancesPage() {
         }}
         placeholder="搜索备注名 / Hostname / IP"
         rightSlot={
-          <>
-            <label className="filters-page-size">
-              每页
-              <select
-                className="filters-select"
-                value={pageSize}
-                onChange={(event) => {
-                  const next = Number(event.target.value);
-                  setPageSize(next);
-                  setPage(1);
-                }}
-              >
-                {[10, 20, 50].map((size) => (
-                  <option key={size} value={size}>
-                    {size}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <span className="muted small">第 {page} / {totalPages} 页</span>
-          </>
+          <span className="muted small">共 {total} 台实例</span>
         }
       />
 
@@ -175,24 +156,16 @@ export default function InstancesPage() {
           ))}
           {instances.length === 0 ? <div className="empty">暂无实例</div> : null}
         </div>
-        <div className="pager-row">
-          <button
-            type="button"
-            className="ghost"
-            disabled={page <= 1}
-            onClick={() => setPage((current) => Math.max(1, current - 1))}
-          >
-            上一页
-          </button>
-          <button
-            type="button"
-            className="ghost"
-            disabled={page >= totalPages}
-            onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-          >
-            下一页
-          </button>
-        </div>
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={(next) => {
+            setPageSize(next);
+            setPage(1);
+          }}
+        />
       </div>
 
       <TaskModal

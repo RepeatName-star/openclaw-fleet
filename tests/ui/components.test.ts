@@ -1,5 +1,7 @@
+import { readFileSync } from "node:fs";
 import React from "react";
 import { renderToString } from "react-dom/server";
+import Pagination from "../../ui/src/components/Pagination.js";
 import InstancesPage from "../../ui/src/pages/Instances.js";
 import TasksPage from "../../ui/src/pages/Tasks.js";
 import TaskDetailPage from "../../ui/src/pages/TaskDetail.js";
@@ -85,4 +87,29 @@ test("app renders chinese operator navigation", () => {
   expect(html).toContain("分组与标签");
   expect(html).toContain("批量任务");
   expect(html).toContain("文件与记忆");
+});
+
+test("pagination component renders page controls and page size choices", () => {
+  const html = render(
+    React.createElement(Pagination, {
+      page: 2,
+      totalPages: 5,
+      pageSize: 20,
+      onPageChange: () => {},
+      onPageSizeChange: () => {},
+    }),
+  );
+  const normalized = html.replace(/<!-- -->/g, "");
+
+  expect(normalized).toContain("每页");
+  expect(normalized).toContain("20");
+  expect(normalized).toContain("第 2 / 5 页");
+  expect(normalized).toContain("上一页");
+  expect(normalized).toContain("下一页");
+});
+
+test("shared surface styles keep ink-colored text on light panels", () => {
+  const css = readFileSync("ui/src/styles.css", "utf8");
+  expect(css).toMatch(/\.card\s*{[^}]*color:\s*var\(--ink\);/s);
+  expect(css).toMatch(/\.table-row\s*{[^}]*color:\s*var\(--ink\);/s);
 });

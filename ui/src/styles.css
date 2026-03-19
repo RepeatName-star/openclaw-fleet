@@ -183,6 +183,7 @@ button:disabled {
 
 .card {
   background: var(--surface);
+  color: var(--ink);
   border-radius: 16px;
   padding: 18px;
   box-shadow: var(--shadow);
@@ -201,6 +202,7 @@ button:disabled {
   padding: 12px 14px;
   border-radius: 12px;
   background: #faf7f0;
+  color: var(--ink);
 }
 
 .table-row.header {
@@ -446,6 +448,7 @@ textarea {
 
 .modal {
   background: var(--surface);
+  color: var(--ink);
   border-radius: 16px;
   padding: 18px;
   width: min(720px, 90vw);
@@ -479,10 +482,19 @@ textarea {
   font-size: 12px;
 }
 
-.pager-row {
+.pagination {
   margin-top: 16px;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pagination-meta,
+.pagination-actions {
+  display: flex;
+  align-items: center;
   gap: 8px;
 }
 

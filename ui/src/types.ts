@@ -29,6 +29,18 @@ export type InstanceFileSaveResult = {
   file: InstanceFileItem;
 };
 
+export type OverviewStats = {
+  instances_total: number;
+  instances_online: number;
+  tasks_total: number;
+  tasks_pending: number;
+  tasks_leased: number;
+  tasks_done: number;
+  tasks_error: number;
+  campaigns_open: number;
+  skill_bundles_total: number;
+};
+
 export type TaskItem = {
   id: string;
   target_type: string;

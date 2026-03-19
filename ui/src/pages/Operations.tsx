@@ -9,6 +9,7 @@ import type {
   TaskItem,
 } from "../types";
 import Filters from "../components/Filters";
+import Pagination from "../components/Pagination";
 import TaskModal from "../components/TaskModal";
 import { usePolling } from "../hooks/usePolling.js";
 
@@ -345,25 +346,7 @@ export default function OperationsPage({ initialTab = "tasks" }: OperationsPageP
                     <option value="failed">failed</option>
                   </select>
                 </label>
-                <label className="filters-page-size">
-                  每页
-                  <select
-                    className="filters-select"
-                    value={taskPageSize}
-                    onChange={(event) => {
-                      const next = Number(event.target.value);
-                      setTaskPageSize(next);
-                      setTaskPageNumber(1);
-                    }}
-                  >
-                    {[10, 20, 50].map((size) => (
-                      <option key={size} value={size}>
-                        {size}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <span className="muted small">第 {taskPageNumber} / {taskTotalPages} 页</span>
+                <span className="muted small">共 {taskPage.total} 条任务</span>
               </>
             }
           />
@@ -409,26 +392,16 @@ export default function OperationsPage({ initialTab = "tasks" }: OperationsPageP
               ))}
               {taskPage.items.length === 0 ? <div className="empty">暂无任务</div> : null}
             </div>
-            <div className="pager-row">
-              <button
-                type="button"
-                className="ghost"
-                disabled={taskPageNumber <= 1}
-                onClick={() => setTaskPageNumber((current) => Math.max(1, current - 1))}
-              >
-                上一页
-              </button>
-              <button
-                type="button"
-                className="ghost"
-                disabled={taskPageNumber >= taskTotalPages}
-                onClick={() =>
-                  setTaskPageNumber((current) => Math.min(taskTotalPages, current + 1))
-                }
-              >
-                下一页
-              </button>
-            </div>
+            <Pagination
+              page={taskPageNumber}
+              totalPages={taskTotalPages}
+              pageSize={taskPageSize}
+              onPageChange={setTaskPageNumber}
+              onPageSizeChange={(next) => {
+                setTaskPageSize(next);
+                setTaskPageNumber(1);
+              }}
+            />
           </div>
         </>
       ) : (
@@ -482,25 +455,7 @@ export default function OperationsPage({ initialTab = "tasks" }: OperationsPageP
                   placeholder="exec.finished"
                 />
               </label>
-              <label className="filters-page-size">
-                每页
-                <select
-                  className="filters-select"
-                  value={eventPageSize}
-                  onChange={(event) => {
-                    const next = Number(event.target.value);
-                    setEventPageSize(next);
-                    setEventPageNumber(1);
-                  }}
-                >
-                  {[10, 20, 50].map((size) => (
-                    <option key={size} value={size}>
-                      {size}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <span className="muted small">第 {eventPageNumber} / {eventTotalPages} 页</span>
+              <span className="muted small">共 {eventPage.total} 条事件</span>
             </div>
             <div className="row-actions">
               <button type="button" onClick={() => void loadEvents()}>
@@ -563,26 +518,16 @@ export default function OperationsPage({ initialTab = "tasks" }: OperationsPageP
               ))}
               {eventPage.items.length === 0 ? <div className="empty">暂无事件</div> : null}
             </div>
-            <div className="pager-row">
-              <button
-                type="button"
-                className="ghost"
-                disabled={eventPageNumber <= 1}
-                onClick={() => setEventPageNumber((current) => Math.max(1, current - 1))}
-              >
-                上一页
-              </button>
-              <button
-                type="button"
-                className="ghost"
-                disabled={eventPageNumber >= eventTotalPages}
-                onClick={() =>
-                  setEventPageNumber((current) => Math.min(eventTotalPages, current + 1))
-                }
-              >
-                下一页
-              </button>
-            </div>
+            <Pagination
+              page={eventPageNumber}
+              totalPages={eventTotalPages}
+              pageSize={eventPageSize}
+              onPageChange={setEventPageNumber}
+              onPageSizeChange={(next) => {
+                setEventPageSize(next);
+                setEventPageNumber(1);
+              }}
+            />
           </div>
         </>
       )}

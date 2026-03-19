@@ -7,6 +7,7 @@ import type {
   InstanceFileItem,
   InstanceFileSaveResult,
   InstanceLabelItem,
+  OverviewStats,
   PaginatedItems,
   InstanceSummary,
   SkillBundleItem,
@@ -35,6 +36,7 @@ export type ApiClient = {
     name: string,
     data: { content: string },
   ) => Promise<InstanceFileSaveResult>;
+  getOverview: () => Promise<OverviewStats>;
   listTasks: (filters?: Record<string, string>) => Promise<TaskItem[]>;
   listTasksPage: (filters?: {
     q?: string;
@@ -247,6 +249,9 @@ export function createApiClient(baseUrl = "", fetcher: Fetcher = fetch): ApiClie
         headers: { "content-type": "application/json" },
         body: JSON.stringify(data),
       });
+    },
+    async getOverview() {
+      return request<OverviewStats>("/v1/overview");
     },
     async listTasks(filters = {}) {
       const data = await listTasksPageRequest(filters);
