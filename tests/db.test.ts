@@ -58,3 +58,21 @@ test("probe state migrations add instance_probe_states", async () => {
   await runMigrations(db);
   expect(() => db.public.query("select 1 from instance_probe_states")).not.toThrow();
 });
+
+test("ui v0.2 ops migrations add display metadata and task naming columns", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+
+  const instanceColumns = db.public.query(
+    "select column_name from information_schema.columns where table_name='instances'",
+  );
+  const instanceNames = instanceColumns.rows.map((row) => row.column_name);
+  expect(instanceNames).toContain("display_name");
+  expect(instanceNames).toContain("last_seen_ip");
+
+  const taskColumns = db.public.query(
+    "select column_name from information_schema.columns where table_name='tasks'",
+  );
+  const taskNames = taskColumns.rows.map((row) => row.column_name);
+  expect(taskNames).toContain("task_name");
+});
