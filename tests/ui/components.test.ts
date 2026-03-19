@@ -35,7 +35,8 @@ test("task detail page renders", () => {
 
 test("skills page renders", () => {
   const html = render(React.createElement(SkillsPage));
-  expect(html).toContain("Skills");
+  expect(html).toContain("技能管理");
+  expect(html).toContain("安装 Skill");
 });
 
 test("memory page renders", () => {
@@ -70,8 +71,8 @@ test("events page renders", () => {
 
 test("skill bundles page renders", () => {
   const html = render(React.createElement(SkillBundlesPage));
-  expect(html).toContain("Skill Bundles");
-  expect(html).toContain("上传 Bundle");
+  expect(html).toContain("技能管理");
+  expect(html).toContain("上传 Skill Bundle");
 });
 
 test("app renders chinese operator navigation", () => {

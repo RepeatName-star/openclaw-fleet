@@ -44,6 +44,12 @@ test("skill bundles page can delete a bundle from the UI", async () => {
         ],
       });
     }
+    if (url === "/v1/instances/i-1/skills") {
+      return jsonResponse({
+        updated_at: new Date().toISOString(),
+        skills: { skills: [] },
+      });
+    }
     if (url === "/v1/skill-bundles/b-1/delete" && init?.method === "POST") {
       return jsonResponse({ ok: true });
     }
