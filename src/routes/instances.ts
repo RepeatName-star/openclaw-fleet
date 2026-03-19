@@ -14,14 +14,47 @@ type InstanceRoutesOptions = {
   redis?: RedisLike;
 };
 
+const ListQuerySchema = z.object({
+  q: z.string().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  page_size: z.coerce.number().int().min(1).max(100).default(10),
+});
+
 export async function registerInstanceRoutes(app: FastifyInstance, opts: InstanceRoutesOptions) {
-  app.get("/v1/instances", async (_request, reply) => {
+  app.get("/v1/instances", async (request, reply) => {
     if (!opts.pool || !opts.redis) {
       reply.code(500).send({ error: "server not configured" });
       return;
     }
+    const parsed = ListQuerySchema.safeParse(request.query ?? {});
+    if (!parsed.success) {
+      reply.code(400).send({ error: "invalid query" });
+      return;
+    }
+    const { q, page, page_size } = parsed.data;
+    const filters: string[] = [];
+    const values: Array<string | number> = [];
+    if (q) {
+      values.push(`%${q.toLowerCase()}%`);
+      filters.push(
+        `(lower(coalesce(display_name, '')) like $${values.length} or lower(name) like $${values.length})`,
+      );
+    }
+    const whereClause = filters.length ? `where ${filters.join(" and ")}` : "";
+    const countRes = await opts.pool.query(
+      `select count(*)::int as total from instances ${whereClause}`,
+      values,
+    );
+    values.push(page_size);
+    values.push((page - 1) * page_size);
     const res = await opts.pool.query(
-      "select id, name, display_name, last_seen_ip, updated_at, control_ui_url, skills_snapshot_at from instances order by created_at asc",
+      `select id, name, display_name, last_seen_ip, updated_at, control_ui_url, skills_snapshot_at
+       from instances
+       ${whereClause}
+       order by created_at asc, id asc
+       limit $${values.length - 1}
+       offset $${values.length}`,
+      values,
     );
     const items = [] as Array<Record<string, unknown>>;
     for (const row of res.rows) {
@@ -37,7 +70,7 @@ export async function registerInstanceRoutes(app: FastifyInstance, opts: Instanc
         online: Boolean(hb),
       });
     }
-    reply.send({ items });
+    reply.send({ items, total: countRes.rows[0]?.total ?? 0, page, page_size });
   });
 
   app.get("/v1/instances/:id", async (request, reply) => {

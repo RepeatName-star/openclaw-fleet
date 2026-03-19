@@ -7,6 +7,8 @@ const ListQuerySchema = z.object({
   instance_id: z.string().min(1).optional(),
   event_type: z.string().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(500).optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  page_size: z.coerce.number().int().min(1).max(100).optional(),
 });
 
 const ExportQuerySchema = ListQuerySchema.extend({
@@ -53,14 +55,30 @@ export async function registerEventsRoutes(app: FastifyInstance, opts: EventsRou
       args.push(parsed.data.event_type);
     }
     const where = conditions.length ? `where ${conditions.join(" and ")}` : "";
-    const limit = parsed.data.limit ?? 200;
-    args.push(limit);
-
-    const res = await opts.pool.query(
-      `select id, event_type, ts, campaign_id, campaign_generation, instance_id, instance_name, labels_snapshot, facts_snapshot, payload, artifact_id from events ${where} order by ts desc limit $${idx}`,
+    const page = parsed.data.page ?? 1;
+    const pageSize = parsed.data.page_size ?? parsed.data.limit ?? 10;
+    const countRes = await opts.pool.query(
+      `select count(*)::int as total from events ${where}`,
       args,
     );
-    reply.send({ items: res.rows });
+    args.push(pageSize);
+    args.push((page - 1) * pageSize);
+
+    const res = await opts.pool.query(
+      `select id, event_type, ts, campaign_id, campaign_generation, instance_id, instance_name, labels_snapshot, facts_snapshot, payload, artifact_id
+       from events
+       ${where}
+       order by ts desc, id desc
+       limit $${idx}
+       offset $${idx + 1}`,
+      args,
+    );
+    reply.send({
+      items: res.rows,
+      total: countRes.rows[0]?.total ?? 0,
+      page,
+      page_size: pageSize,
+    });
   });
 
   app.get("/v1/events/export", async (request, reply) => {

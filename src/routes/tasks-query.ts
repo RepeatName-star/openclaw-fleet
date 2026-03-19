@@ -63,7 +63,7 @@ export async function registerTasksQueryRoutes(app: FastifyInstance, opts: Tasks
     values.push(page_size);
     values.push((page - 1) * page_size);
     const res = await opts.pool.query(
-      `select t.id, t.target_type, t.target_id, t.task_name, t.action, t.status, t.attempts, t.updated_at, i.name as instance_name, i.display_name as instance_display_name ${fromClause} ${whereClause} order by t.created_at desc limit $${values.length - 1} offset $${values.length}`,
+      `select t.id, t.target_type, t.target_id, t.task_name, t.action, t.status, t.attempts, t.updated_at, i.name as instance_name, i.display_name as instance_display_name ${fromClause} ${whereClause} order by t.created_at desc, t.id desc limit $${values.length - 1} offset $${values.length}`,
       values,
     );
     reply.send({

@@ -139,6 +139,11 @@ Notes:
 
 ### GET /v1/instances
 
+Query:
+- `q` matches `display_name` first, then hostname `name`
+- `page` defaults to `1`
+- `page_size` defaults to `10`
+
 Response:
 ```json
 {
@@ -146,18 +151,23 @@ Response:
     {
       "id": "<uuid>",
       "name": "i-1",
+      "display_name": "beijing-master",
+      "last_seen_ip": "10.0.0.8",
       "updated_at": "<timestamptz>",
       "control_ui_url": "<optional url>",
       "skills_snapshot_at": "<optional timestamptz>",
       "online": true
     }
-  ]
+  ],
+  "total": 1,
+  "page": 1,
+  "page_size": 10
 }
 ```
 
 ### GET /v1/instances/:id
 
-Response: instance row (includes `skills_snapshot` and `skills_snapshot_at`).
+Response: instance row (includes `display_name`, `last_seen_ip`, `skills_snapshot`, and `skills_snapshot_at`).
 
 ### PATCH /v1/instances/:id
 
@@ -165,6 +175,7 @@ Request:
 ```json
 {
   "name": "<optional>",
+  "display_name": "<optional>",
   "control_ui_url": "<optional url>"
 }
 ```
@@ -236,9 +247,21 @@ Group is a **named label selector** (not a static membership list).
 
 ### GET /v1/groups
 
+Query:
+- `q` matches group `name`
+- `page` defaults to `1`
+- `page_size` defaults to `10`
+
 Response:
 ```json
-{ "items": [ { "id": "<uuid>", "name": "g1", "selector": "<selector>", "description": null } ] }
+{
+  "items": [
+    { "id": "<uuid>", "name": "g1", "selector": "<selector>", "description": null }
+  ],
+  "total": 1,
+  "page": 1,
+  "page_size": 10
+}
 ```
 
 ### POST /v1/groups
@@ -283,6 +306,9 @@ Campaign is the v0.1 batch execution object:
 
 Query:
 - `include_deleted=true|1` to include soft-deleted campaigns in the list. Default is to hide them.
+- `q` matches campaign `name`
+- `page` defaults to `1`
+- `page_size` defaults to `10`
 
 Response:
 ```json
@@ -300,7 +326,10 @@ Response:
       "closed_at": null,
       "expires_at": null
     }
-  ]
+  ],
+  "total": 1,
+  "page": 1,
+  "page_size": 10
 }
 ```
 
@@ -379,7 +408,9 @@ Query:
 - `campaign_id` (optional)
 - `instance_id` (optional)
 - `event_type` (optional)
-- `limit` (optional, 1..500, default 200)
+- `limit` (optional legacy alias for first-page size)
+- `page` defaults to `1`
+- `page_size` defaults to `10`
 
 Response:
 ```json
@@ -404,7 +435,10 @@ Response:
       },
       "artifact_id": "<optional uuid>"
     }
-  ]
+  ],
+  "total": 1,
+  "page": 1,
+  "page_size": 10
 }
 ```
 

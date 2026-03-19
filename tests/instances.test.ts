@@ -62,6 +62,32 @@ test("GET /v1/instances/:id returns display metadata", async () => {
   });
 });
 
+test("GET /v1/instances supports q and pagination", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+  const pool = createTestPool(db);
+  await pool.query(
+    "insert into instances (name, display_name) values ($1, $2), ($3, $4), ($5, $6)",
+    ["host-a", "worker-a", "host-b", "worker-b", "host-c", "control-plane"],
+  );
+  const redis = { set: async () => "OK", get: async () => null };
+  const app = await buildServer({ pool, redis });
+
+  const res = await app.inject({
+    method: "GET",
+    url: "/v1/instances?q=worker&page=2&page_size=1",
+  });
+
+  expect(res.statusCode).toBe(200);
+  expect(res.json()).toMatchObject({
+    total: 2,
+    page: 2,
+    page_size: 1,
+  });
+  expect(res.json().items).toHaveLength(1);
+  expect(res.json().items[0]).toMatchObject({ display_name: "worker-b" });
+});
+
 test("GET /v1/instances/:id/skills returns snapshot", async () => {
   const db = initTestDb();
   await runMigrations(db);
