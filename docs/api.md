@@ -21,6 +21,31 @@ Response:
 
 ---
 
+## Overview
+
+### GET /v1/overview
+
+Response:
+```json
+{
+  "instances_total": 14,
+  "instances_online": 12,
+  "tasks_total": 120,
+  "tasks_pending": 4,
+  "tasks_leased": 1,
+  "tasks_done": 110,
+  "tasks_error": 5,
+  "campaigns_open": 2,
+  "skill_bundles_total": 8
+}
+```
+
+Notes:
+- `instances_online` is derived from active Redis heartbeat keys.
+- The response is intentionally flat for dashboard cards.
+
+---
+
 ## Enrollment (Sidecar Bootstrap)
 
 ### POST /v1/enroll
