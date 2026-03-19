@@ -18,7 +18,8 @@ function render(component: React.ReactElement) {
 
 test("instances page renders", () => {
   const html = render(React.createElement(InstancesPage));
-  expect(html).toContain("Instances");
+  expect(html).toContain("实例");
+  expect(html).toContain("备注名");
 });
 
 test("tasks page renders", () => {

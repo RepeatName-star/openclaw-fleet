@@ -1,6 +1,15 @@
+export type PaginatedItems<T> = {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
 export type InstanceSummary = {
   id: string;
   name: string;
+  display_name?: string | null;
+  last_seen_ip?: string | null;
   updated_at: string;
   online: boolean;
   control_ui_url?: string | null;

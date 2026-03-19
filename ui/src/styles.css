@@ -252,6 +252,14 @@ textarea {
   align-items: center;
 }
 
+.filters-page-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -453,6 +461,13 @@ textarea {
 .link {
   color: var(--accent-dark);
   font-size: 12px;
+}
+
+.pager-row {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 @media (max-width: 980px) {

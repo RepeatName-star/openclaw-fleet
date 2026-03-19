@@ -5,6 +5,7 @@ import type {
   GroupItem,
   GroupMatchItem,
   InstanceLabelItem,
+  PaginatedItems,
   InstanceSummary,
   SkillBundleItem,
   TaskAttempt,
@@ -15,8 +16,16 @@ type Fetcher = (input: RequestInfo, init?: RequestInit) => Promise<Response>;
 
 export type ApiClient = {
   listInstances: () => Promise<InstanceSummary[]>;
+  listInstancesPage: (filters?: {
+    q?: string;
+    page?: number;
+    page_size?: number;
+  }) => Promise<PaginatedItems<InstanceSummary>>;
   getInstance: (id: string) => Promise<InstanceSummary>;
-  updateInstance: (id: string, data: { name?: string; control_ui_url?: string }) => Promise<InstanceSummary>;
+  updateInstance: (
+    id: string,
+    data: { name?: string; display_name?: string; control_ui_url?: string },
+  ) => Promise<InstanceSummary>;
   listTasks: (filters?: Record<string, string>) => Promise<TaskItem[]>;
   getTask: (id: string) => Promise<any>;
   getTaskAttempts: (id: string) => Promise<TaskAttempt[]>;
@@ -125,13 +134,31 @@ export function createApiClient(baseUrl = "", fetcher: Fetcher = fetch): ApiClie
 
   return {
     async listInstances() {
-      const data = await request<{ items: InstanceSummary[] }>("/v1/instances");
+      const data = await request<PaginatedItems<InstanceSummary>>("/v1/instances");
       return data.items ?? [];
+    },
+    async listInstancesPage(filters = {}) {
+      const params = new URLSearchParams(
+        Object.entries(filters)
+          .filter(([, value]) => value !== undefined && value !== null && String(value).length > 0)
+          .map(([key, value]) => [key, String(value)]),
+      ).toString();
+      const suffix = params ? `?${params}` : "";
+      const data = await request<PaginatedItems<InstanceSummary>>(`/v1/instances${suffix}`);
+      return {
+        items: data.items ?? [],
+        total: data.total ?? 0,
+        page: data.page ?? 1,
+        page_size: data.page_size ?? 10,
+      };
     },
     async getInstance(id: string) {
       return request<InstanceSummary>(`/v1/instances/${id}`);
     },
-    async updateInstance(id: string, data: { name?: string; control_ui_url?: string }) {
+    async updateInstance(
+      id: string,
+      data: { name?: string; display_name?: string; control_ui_url?: string },
+    ) {
       return request<InstanceSummary>(`/v1/instances/${id}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
