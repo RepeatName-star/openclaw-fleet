@@ -488,6 +488,7 @@ Request:
 {
   "target_type": "instance",
   "target_id": "<instance-id>",
+  "task_name": "refresh skills inventory",
   "action": "skills.update",
   "payload": {},
   "expires_at": "2026-12-31T00:00:00.000Z"
@@ -511,6 +512,9 @@ Notes:
 ### GET /v1/tasks
 
 Query (all optional):
+- `q` matches `task_name`, `action`, `instance display_name`, and `instance name`
+- `page` defaults to `1`
+- `page_size` defaults to `10`
 - `status`
 - `action`
 - `target_type`
@@ -518,7 +522,24 @@ Query (all optional):
 
 Response:
 ```json
-{ "items": [ { "id": "<uuid>", "target_type": "instance", "target_id": "<id>", "action": "skills.update", "status": "pending", "attempts": 1 } ] }
+{
+  "items": [
+    {
+      "id": "<uuid>",
+      "target_type": "instance",
+      "target_id": "<id>",
+      "task_name": "refresh skills inventory",
+      "action": "skills.update",
+      "status": "pending",
+      "attempts": 1,
+      "instance_name": "i-abc123",
+      "instance_display_name": "beijing-master"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "page_size": 10
+}
 ```
 
 ### GET /v1/tasks/:id

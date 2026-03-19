@@ -7,6 +7,9 @@ const QuerySchema = z.object({
   action: z.string().optional(),
   target_type: z.string().optional(),
   target_id: z.string().optional(),
+  q: z.string().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  page_size: z.coerce.number().int().min(1).max(100).default(10),
 });
 
 type TasksQueryOptions = {
@@ -24,31 +27,51 @@ export async function registerTasksQueryRoutes(app: FastifyInstance, opts: Tasks
       reply.code(400).send({ error: "invalid query" });
       return;
     }
-    const { status, action, target_type, target_id } = parsed.data;
+    const { status, action, target_type, target_id, q, page, page_size } = parsed.data;
     const filters: string[] = [];
-    const values: Array<string> = [];
+    const values: Array<string | number> = [];
     if (status) {
       values.push(status);
-      filters.push(`status = $${values.length}`);
+      filters.push(`t.status = $${values.length}`);
     }
     if (action) {
       values.push(action);
-      filters.push(`action = $${values.length}`);
+      filters.push(`t.action = $${values.length}`);
     }
     if (target_type) {
       values.push(target_type);
-      filters.push(`target_type = $${values.length}`);
+      filters.push(`t.target_type = $${values.length}`);
     }
     if (target_id) {
       values.push(target_id);
-      filters.push(`target_id = $${values.length}`);
+      filters.push(`t.target_id = $${values.length}`);
+    }
+    if (q) {
+      values.push(`%${q.toLowerCase()}%`);
+      const index = values.length;
+      filters.push(
+        `(lower(coalesce(t.task_name, '')) like $${index} or lower(t.action) like $${index} or lower(coalesce(i.display_name, '')) like $${index} or lower(coalesce(i.name, '')) like $${index})`,
+      );
     }
     const whereClause = filters.length ? `where ${filters.join(" and ")}` : "";
-    const res = await opts.pool.query(
-      `select id, target_type, target_id, action, status, attempts, updated_at from tasks ${whereClause} order by created_at desc limit 200`,
+    const fromClause =
+      "from tasks t left join instances i on t.target_type = 'instance' and i.id::text = t.target_id";
+    const countRes = await opts.pool.query(
+      `select count(*)::int as total ${fromClause} ${whereClause}`,
       values,
     );
-    reply.send({ items: res.rows });
+    values.push(page_size);
+    values.push((page - 1) * page_size);
+    const res = await opts.pool.query(
+      `select t.id, t.target_type, t.target_id, t.task_name, t.action, t.status, t.attempts, t.updated_at, i.name as instance_name, i.display_name as instance_display_name ${fromClause} ${whereClause} order by t.created_at desc limit $${values.length - 1} offset $${values.length}`,
+      values,
+    );
+    reply.send({
+      items: res.rows,
+      total: countRes.rows[0]?.total ?? 0,
+      page,
+      page_size,
+    });
   });
 
   app.get("/v1/tasks/:id", async (request, reply) => {
