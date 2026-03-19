@@ -5,6 +5,7 @@ import type { RedisLike } from "../redis.js";
 
 const PatchSchema = z.object({
   name: z.string().min(1).optional(),
+  display_name: z.string().min(1).optional(),
   control_ui_url: z.string().url().optional(),
 });
 
@@ -20,7 +21,7 @@ export async function registerInstanceRoutes(app: FastifyInstance, opts: Instanc
       return;
     }
     const res = await opts.pool.query(
-      "select id, name, updated_at, control_ui_url, skills_snapshot_at from instances order by created_at asc",
+      "select id, name, display_name, last_seen_ip, updated_at, control_ui_url, skills_snapshot_at from instances order by created_at asc",
     );
     const items = [] as Array<Record<string, unknown>>;
     for (const row of res.rows) {
@@ -28,6 +29,8 @@ export async function registerInstanceRoutes(app: FastifyInstance, opts: Instanc
       items.push({
         id: row.id,
         name: row.name,
+        display_name: row.display_name,
+        last_seen_ip: row.last_seen_ip,
         updated_at: row.updated_at,
         control_ui_url: row.control_ui_url,
         skills_snapshot_at: row.skills_snapshot_at,
@@ -44,7 +47,7 @@ export async function registerInstanceRoutes(app: FastifyInstance, opts: Instanc
     }
     const { id } = request.params as { id: string };
     const res = await opts.pool.query(
-      "select id, name, updated_at, control_ui_url, skills_snapshot, skills_snapshot_at from instances where id = $1",
+      "select id, name, display_name, last_seen_ip, updated_at, control_ui_url, skills_snapshot, skills_snapshot_at from instances where id = $1",
       [id],
     );
     if (!res.rowCount) {
@@ -86,8 +89,13 @@ export async function registerInstanceRoutes(app: FastifyInstance, opts: Instanc
     }
     const { id } = request.params as { id: string };
     const res = await opts.pool.query(
-      "update instances set name = coalesce($2, name), control_ui_url = coalesce($3, control_ui_url), updated_at = now() where id = $1 returning id, name, control_ui_url",
-      [id, parsed.data.name ?? null, parsed.data.control_ui_url ?? null],
+      "update instances set name = coalesce($2, name), display_name = coalesce($3, display_name), control_ui_url = coalesce($4, control_ui_url), updated_at = now() where id = $1 returning id, name, display_name, control_ui_url, last_seen_ip",
+      [
+        id,
+        parsed.data.name ?? null,
+        parsed.data.display_name ?? null,
+        parsed.data.control_ui_url ?? null,
+      ],
     );
     if (!res.rowCount) {
       reply.code(404).send({ error: "not found" });

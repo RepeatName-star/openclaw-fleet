@@ -22,9 +22,10 @@ export async function registerHeartbeatRoutes(app: FastifyInstance, opts: Heartb
       }
       const instanceId = request.device.instanceId;
       await opts.redis.set(`hb:${instanceId}`, "1", "EX", 90);
-      await opts.pool.query("update instances set updated_at = now() where id = $1", [
-        instanceId,
-      ]);
+      await opts.pool.query(
+        "update instances set updated_at = now(), last_seen_ip = $2 where id = $1",
+        [instanceId, request.ip ?? null],
+      );
       reply.send({ ok: true });
     },
   );
