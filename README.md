@@ -115,15 +115,15 @@ flowchart TB
   - `skills.status` (snapshot per instance)
   - `config.patch`
 - UI:
-  - Instances list + online status
-  - Tasks list + task detail (attempts + error)
-  - Skills snapshot + enable/disable
-  - Memory/Persona editor
-  - Labels management (business labels per instance)
-  - Groups (named selectors) management + matches preview
-  - Campaigns management (create/update/close/delete-closed, can seed selector from Group)
-  - Events timeline + export (JSONL/CSV) + artifact viewer
-  - Skill bundles upload/list/download/delete + install helpers (task/campaign)
+  - Chinese-first operator console navigation:
+    - `全局概览`: fleet summary cards from `/v1/overview`
+    - `实例`: display name + hostname + IP, inline rename, per-instance task entry
+    - `任务与审计`: unified task list + audit/event view with search, filters, artifact detail
+    - `技能管理`: instance skill snapshot + integrated bundle upload/install workflow
+    - `分组与标签`: groups, matches preview, and business labels on one surface
+    - `批量任务`: Campaign management with action-aware payload editor
+    - `文件与记忆`: Fleet-managed file editor for `AGENTS.md` / `SOUL.md` / `TOOLS.md` / `IDENTITY.md` / `USER.md` / `HEARTBEAT.md` / `BOOTSTRAP.md` / `MEMORY.md`
+  - Shared pagination (`page` / `page_size`) across operator lists
   - Per-instance OpenClaw console link (`control_ui_url`)
 
 ## Quick Start (Single Host)
@@ -175,6 +175,7 @@ UI is served at `http://127.0.0.1:3000/` once `pnpm ui:build` has run.
 Notes:
 - `openclawGatewayToken` is optional; omit it if your gateway has no auth.
 - `openclawGatewayUrl` should point to the local gateway for that instance.
+- The default operator navigation is `全局概览 / 实例 / 任务与审计 / 技能管理 / 分组与标签 / 批量任务 / 文件与记忆`.
 
 UI development:
 
@@ -214,13 +215,18 @@ See `docs/usage-v0.1.md` for the current feature matrix, action payloads, expect
 See `docs/campaign-manual.md` for Campaign field semantics, Gate/Rollout boundaries, and common payload templates.
 
 UI-related read endpoints:
+- `GET /v1/overview`
 - `GET /v1/instances`
 - `GET /v1/instances/:id`
 - `PATCH /v1/instances/:id`
 - `GET /v1/instances/:id/skills`
+- `GET /v1/instances/:id/files`
+- `GET /v1/instances/:id/files/:name`
+- `PUT /v1/instances/:id/files/:name`
 - `GET /v1/tasks`
 - `GET /v1/tasks/:id`
 - `GET /v1/tasks/:id/attempts`
+- `GET /v1/events`
 
 ## CLI
 

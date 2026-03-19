@@ -7,6 +7,9 @@
 - `docs/api.md`
 - `docs/cli.md`
 
+补充：
+- UI v0.2 的 `批量任务` 页面会针对所选 `action` 打开一个 payload 编辑弹窗，并自动填入示例 JSON；`gate` / `rollout` 仍保持原始 JSON 输入。
+
 ## 1. Campaign 是什么
 
 `Campaign` 是当前唯一受支持的批量执行一等对象：

@@ -8,6 +8,16 @@ Base URL: `http://<host>:<port>`
 - **Device token**: sidecar endpoints require `Authorization: Bearer <device_token>`.
 - **Admin/UI endpoints**: in v0.1 most read/write endpoints are **not authenticated** (single-tenant MVP). Protect the service at the network layer.
 
+## Operator Console Query Model
+
+The current web UI assumes a shared list model for operator-facing endpoints:
+
+- list endpoints return `{ items, total, page, page_size }`
+- `page` defaults to `1`
+- `page_size` defaults to `10`
+- page-size choices exposed by the UI are currently `10 / 20 / 50`
+- overview/dashboard cards use `GET /v1/overview`
+
 ---
 
 ## Health
