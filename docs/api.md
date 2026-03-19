@@ -215,6 +215,72 @@ Response:
 }
 ```
 
+### GET /v1/instances/:id/files
+
+Query:
+- `agent_id` defaults to `main`
+
+Response:
+```json
+{
+  "items": [
+    { "name": "AGENTS.md", "missing": false, "size": 1200, "updated_at_ms": 1770000000000 },
+    { "name": "SOUL.md", "missing": true }
+  ]
+}
+```
+
+Notes:
+- Only the Fleet-managed whitelist is exposed:
+  - `AGENTS.md`
+  - `SOUL.md`
+  - `TOOLS.md`
+  - `IDENTITY.md`
+  - `USER.md`
+  - `HEARTBEAT.md`
+  - `BOOTSTRAP.md`
+  - `MEMORY.md`
+
+### GET /v1/instances/:id/files/:name
+
+Query:
+- `agent_id` defaults to `main`
+
+Response:
+```json
+{
+  "name": "AGENTS.md",
+  "missing": false,
+  "size": 1200,
+  "updated_at_ms": 1770000000000,
+  "content": "# operator guidance\n"
+}
+```
+
+### PUT /v1/instances/:id/files/:name
+
+Request:
+```json
+{
+  "content": "# updated guidance\n",
+  "agent_id": "main"
+}
+```
+
+Response:
+```json
+{
+  "ok": true,
+  "file": {
+    "name": "AGENTS.md",
+    "missing": false,
+    "size": 18,
+    "updated_at_ms": 1770000000000,
+    "content": "# updated guidance\n"
+  }
+}
+```
+
 ---
 
 ## Labels (Business Labels)

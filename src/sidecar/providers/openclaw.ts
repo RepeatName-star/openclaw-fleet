@@ -1,6 +1,12 @@
 import { randomUUID } from "node:crypto";
 import type {
   AgentRunParams,
+  AgentFileGetParams,
+  AgentFileGetResult,
+  AgentFilesListParams,
+  AgentFilesListResult,
+  AgentFileSetParams,
+  AgentFileSetResult,
   ConfigGetParams,
   ConfigGetResult,
   ConfigPatchParams,
@@ -64,6 +70,15 @@ export function createOpenClawProvider(options: OpenClawProviderOptions): Sideca
         name: fileName,
         content: params.content,
       });
+    },
+    async agentFilesList(params: AgentFilesListParams): Promise<AgentFilesListResult> {
+      return gateway.request("agents.files.list", params) as Promise<AgentFilesListResult>;
+    },
+    async agentFileGet(params: AgentFileGetParams): Promise<AgentFileGetResult> {
+      return gateway.request("agents.files.get", params) as Promise<AgentFileGetResult>;
+    },
+    async agentFileSet(params: AgentFileSetParams): Promise<AgentFileSetResult> {
+      return gateway.request("agents.files.set", params) as Promise<AgentFileSetResult>;
     },
     async sessionReset(params: SessionResetParams) {
       await gateway.request("sessions.reset", params);

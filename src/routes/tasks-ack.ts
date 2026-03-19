@@ -25,6 +25,10 @@ function isProbeAction(action: string) {
   return action === "fleet.gateway.probe" || action === "skills.status";
 }
 
+function isInteractiveFileAction(action: string) {
+  return action === "agents.files.list" || action === "agents.files.get" || action === "agents.files.set";
+}
+
 function normalizeAgentRunPayloads(input: unknown) {
   if (!Array.isArray(input)) {
     return undefined;
@@ -201,6 +205,8 @@ export async function registerTasksAckRoutes(app: FastifyInstance, opts: TasksAc
     const nextStatus =
       taskAction === "skills.status"
         ? "failed"
+        : isInteractiveFileAction(taskAction)
+          ? "failed"
         : currentAttempts >= MAX_ATTEMPTS
           ? "failed"
           : "pending";

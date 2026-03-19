@@ -12,6 +12,7 @@ import { registerEnrollRoutes } from "./routes/enroll.js";
 import { registerGroupsRoutes } from "./routes/groups.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerHeartbeatRoutes } from "./routes/heartbeat.js";
+import { registerInstanceFilesRoutes } from "./routes/instance-files.js";
 import { registerInstanceRoutes } from "./routes/instances.js";
 import { registerLabelsRoutes } from "./routes/labels.js";
 import { registerOverviewRoutes } from "./routes/overview.js";
@@ -33,6 +34,7 @@ export async function buildServer(options: ServerOptions = {}) {
   await registerEnrollRoutes(app, options);
   await registerHeartbeatRoutes(app, options);
   await registerOverviewRoutes(app, options);
+  await registerInstanceFilesRoutes(app, options);
   await registerInstanceRoutes(app, options);
   await registerLabelsRoutes(app, options);
   await registerGroupsRoutes(app, options);

@@ -38,6 +38,48 @@ export type MemoryReplaceParams = {
   fileName?: string;
 };
 
+export type AgentFilesListParams = {
+  agentId: string;
+};
+
+export type AgentFileMeta = {
+  name: string;
+  path?: string;
+  missing: boolean;
+  size?: number;
+  updatedAtMs?: number;
+};
+
+export type AgentFilesListResult = {
+  agentId?: string;
+  workspace?: string;
+  files: AgentFileMeta[];
+};
+
+export type AgentFileGetParams = {
+  agentId: string;
+  name: string;
+};
+
+export type AgentFileGetResult = {
+  agentId?: string;
+  workspace?: string;
+  file: AgentFileMeta & { content?: string };
+};
+
+export type AgentFileSetParams = {
+  agentId: string;
+  name: string;
+  content: string;
+};
+
+export type AgentFileSetResult = {
+  ok: boolean;
+  agentId?: string;
+  workspace?: string;
+  file: AgentFileMeta & { content?: string };
+};
+
 export type SessionResetParams = {
   key: string;
 };
@@ -58,6 +100,9 @@ export interface SidecarProvider {
   skillsUpdate(params: SkillsUpdateParams): Promise<void>;
   skillsStatus(params: SkillsStatusParams): Promise<unknown>;
   memoryReplace(params: MemoryReplaceParams): Promise<void>;
+  agentFilesList(params: AgentFilesListParams): Promise<AgentFilesListResult>;
+  agentFileGet(params: AgentFileGetParams): Promise<AgentFileGetResult>;
+  agentFileSet(params: AgentFileSetParams): Promise<AgentFileSetResult>;
   sessionReset(params: SessionResetParams): Promise<void>;
   agentRun(params: AgentRunParams): Promise<unknown>;
 }
