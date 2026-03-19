@@ -44,7 +44,9 @@ textarea {
 
 .sidebar {
   padding: 28px 20px;
-  background: #11161c;
+  background:
+    radial-gradient(circle at top right, rgba(28, 110, 140, 0.24), transparent 30%),
+    linear-gradient(180deg, #11161c 0%, #171f27 100%);
   color: #f5f2ea;
   display: flex;
   flex-direction: column;
@@ -79,7 +81,7 @@ textarea {
 
 .nav-link.active,
 .nav-link:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(28, 110, 140, 0.22);
   color: #ffffff;
 }
 
@@ -113,11 +115,12 @@ textarea {
 
 .topbar {
   padding: 20px 36px;
-  background: var(--surface);
+  background: rgba(253, 251, 247, 0.92);
   border-bottom: 1px solid rgba(15, 20, 30, 0.06);
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  backdrop-filter: blur(12px);
 }
 
 .topbar-title {
@@ -205,7 +208,7 @@ button:disabled {
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: var(--muted);
+  color: #55656d;
 }
 
 .table-row.clickable {
@@ -317,6 +320,47 @@ textarea {
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--muted);
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.metric-card {
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.metric-value {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--accent-dark);
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    gap: 20px;
+  }
+
+  .content-body,
+  .topbar {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .overview-grid,
+  .grid-two {
+    grid-template-columns: 1fr;
+  }
 }
 
 .code-block {

@@ -10,6 +10,7 @@ import GroupsPage from "../../ui/src/pages/Groups.js";
 import CampaignsPage from "../../ui/src/pages/Campaigns.js";
 import EventsPage from "../../ui/src/pages/Events.js";
 import SkillBundlesPage from "../../ui/src/pages/SkillBundles.js";
+import App from "../../ui/src/App.js";
 
 function render(component: React.ReactElement) {
   return renderToString(component);
@@ -68,4 +69,15 @@ test("skill bundles page renders", () => {
   const html = render(React.createElement(SkillBundlesPage));
   expect(html).toContain("Skill Bundles");
   expect(html).toContain("上传 Bundle");
+});
+
+test("app renders chinese operator navigation", () => {
+  const html = render(React.createElement(App));
+  expect(html).toContain("全局概览");
+  expect(html).toContain("实例");
+  expect(html).toContain("任务与审计");
+  expect(html).toContain("技能管理");
+  expect(html).toContain("分组与标签");
+  expect(html).toContain("批量任务");
+  expect(html).toContain("文件与记忆");
 });
