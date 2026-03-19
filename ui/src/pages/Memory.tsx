@@ -1,21 +1,19 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createApiClient } from "../api/client";
-import type { InstanceSummary } from "../types";
+import type { InstanceFileItem, InstanceSummary } from "../types";
 
 export default function MemoryPage() {
   const api = useMemo(() => createApiClient(), []);
   const [instances, setInstances] = useState<InstanceSummary[]>([]);
   const [targetId, setTargetId] = useState("");
-  const [mode, setMode] = useState<"memory" | "persona">("memory");
-  const [agentId, setAgentId] = useState("main");
-  const [fileName, setFileName] = useState("MEMORY.md");
+  const [files, setFiles] = useState<InstanceFileItem[]>([]);
+  const [selectedFileName, setSelectedFileName] = useState("");
   const [content, setContent] = useState("");
-  const [patchRaw, setPatchRaw] = useState("");
-  const [note, setNote] = useState("");
-  const [sessionKey, setSessionKey] = useState("");
-  const [restartDelayMs, setRestartDelayMs] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [loadingFiles, setLoadingFiles] = useState(false);
+  const [loadingContent, setLoadingContent] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -38,133 +36,164 @@ export default function MemoryPage() {
     };
   }, [api, targetId]);
 
-  async function handleSubmit() {
+  useEffect(() => {
     if (!targetId) {
-      setError("请选择目标实例");
+      setFiles([]);
+      setSelectedFileName("");
+      setContent("");
       return;
     }
+
+    let active = true;
+    async function loadFiles() {
+      setLoadingFiles(true);
+      setError(null);
+      setSuccess(null);
+      try {
+        const items = await api.listInstanceFiles(targetId);
+        if (!active) return;
+        setFiles(items);
+        setSelectedFileName((current) => {
+          if (current && items.some((item) => item.name === current)) {
+            return current;
+          }
+          return items[0]?.name ?? "";
+        });
+      } catch (err) {
+        if (!active) return;
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        if (!active) return;
+        setLoadingFiles(false);
+      }
+    }
+    loadFiles();
+    return () => {
+      active = false;
+    };
+  }, [api, targetId]);
+
+  useEffect(() => {
+    if (!targetId || !selectedFileName) {
+      setContent("");
+      return;
+    }
+
+    let active = true;
+    async function loadFile() {
+      setLoadingContent(true);
+      setError(null);
+      setSuccess(null);
+      try {
+        const file = await api.getInstanceFile(targetId, selectedFileName);
+        if (!active) return;
+        setContent(typeof file.content === "string" ? file.content : "");
+        setFiles((current) =>
+          current.map((item) => (item.name === selectedFileName ? { ...item, ...file } : item)),
+        );
+      } catch (err) {
+        if (!active) return;
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        if (!active) return;
+        setLoadingContent(false);
+      }
+    }
+    loadFile();
+    return () => {
+      active = false;
+    };
+  }, [api, selectedFileName, targetId]);
+
+  async function handleSave() {
+    if (!targetId || !selectedFileName) {
+      setError("请选择实例和文件");
+      return;
+    }
+    setSaving(true);
     setError(null);
     setSuccess(null);
     try {
-      if (mode === "memory") {
-        await api.createTask({
-          target_type: "instance",
-          target_id: targetId,
-          action: "memory.replace",
-          payload: { agentId, content, fileName },
-        });
-        setSuccess("Memory 已下发");
-      } else {
-        await api.createTask({
-          target_type: "instance",
-          target_id: targetId,
-          action: "fleet.config_patch",
-          payload: {
-            raw: patchRaw,
-            note: note || undefined,
-            sessionKey: sessionKey || undefined,
-            restartDelayMs: restartDelayMs ? Number(restartDelayMs) : undefined,
-          },
-        });
-        setSuccess("Persona Patch 已下发");
-      }
+      const result = await api.updateInstanceFile(targetId, selectedFileName, { content });
+      setFiles((current) =>
+        current.map((item) =>
+          item.name === selectedFileName ? { ...item, ...(result.file ?? {}), missing: false } : item,
+        ),
+      );
+      setContent(result.file?.content ?? content);
+      setSuccess(`已保存 ${selectedFileName}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
     }
   }
+
+  const currentInstance = instances.find((instance) => instance.id === targetId);
+  const currentFile = files.find((item) => item.name === selectedFileName);
 
   return (
     <section className="page">
       <header className="page-header">
         <div>
-          <h1>Memory & Persona</h1>
-          <p>更新 Memory 或 Persona 配置。</p>
+          <h1>文件与记忆</h1>
+          <p>直接编辑 Fleet 托管的工作区文件，适合统一维护 Agent 记忆与提示词。</p>
         </div>
-        <button type="button" onClick={handleSubmit}>
-          一键下发
+        <button type="button" onClick={handleSave} disabled={!targetId || !selectedFileName || saving}>
+          {saving ? "保存中..." : "保存文件"}
         </button>
       </header>
-
-      <div className="filters">
-        <select
-          className="filters-select"
-          value={targetId}
-          onChange={(event) => setTargetId(event.target.value)}
-        >
-          <option value="">选择实例</option>
-          {instances.map((instance) => (
-            <option key={instance.id} value={instance.id}>
-              {instance.name}
-            </option>
-          ))}
-        </select>
-        <div className="filters-slot">
-          <button
-            type="button"
-            className={mode === "memory" ? "pill active" : "pill"}
-            onClick={() => setMode("memory")}
-          >
-            Memory
-          </button>
-          <button
-            type="button"
-            className={mode === "persona" ? "pill active" : "pill"}
-            onClick={() => setMode("persona")}
-          >
-            Persona
-          </button>
-        </div>
-      </div>
 
       {error ? <div className="error">{error}</div> : null}
       {success ? <div className="success">{success}</div> : null}
 
-      {mode === "memory" ? (
-        <div className="card stack">
-          <div className="grid-two">
-            <label>
-              Agent ID
-              <input value={agentId} onChange={(event) => setAgentId(event.target.value)} />
-            </label>
-            <label>
-              文件名
-              <input value={fileName} onChange={(event) => setFileName(event.target.value)} />
-            </label>
-          </div>
-          <label>
-            内容
-            <textarea value={content} onChange={(event) => setContent(event.target.value)} />
-          </label>
-        </div>
-      ) : (
+      <div className="grid-two">
         <div className="card stack">
           <label>
-            Patch Raw
-            <textarea value={patchRaw} onChange={(event) => setPatchRaw(event.target.value)} />
+            实例
+            <select value={targetId} onChange={(event) => setTargetId(event.target.value)}>
+              <option value="">选择实例</option>
+              {instances.map((instance) => (
+                <option key={instance.id} value={instance.id}>
+                  {instance.display_name || instance.name}
+                </option>
+              ))}
+            </select>
           </label>
-          <div className="grid-two">
-            <label>
-              Note (可选)
-              <input value={note} onChange={(event) => setNote(event.target.value)} />
-            </label>
-            <label>
-              Session Key (可选)
-              <input value={sessionKey} onChange={(event) => setSessionKey(event.target.value)} />
-            </label>
-            <label>
-              Restart Delay (ms)
-              <input
-                value={restartDelayMs}
-                onChange={(event) => setRestartDelayMs(event.target.value)}
-              />
-            </label>
-          </div>
+          <div className="section-title">支持编辑的文件</div>
           <div className="hint">
-            Fleet 会先执行 <span className="mono">config.get</span> 并自动带上每台实例自己的
-            <span className="mono"> baseHash</span>。
+            {currentInstance ? `当前实例：${currentInstance.display_name || currentInstance.name}` : "请先选择实例"}
+          </div>
+          {loadingFiles ? <div className="hint">文件列表加载中...</div> : null}
+          <div className="stack">
+            {files.map((file) => (
+              <button
+                key={file.name}
+                type="button"
+                className={file.name === selectedFileName ? "" : "ghost"}
+                onClick={() => setSelectedFileName(file.name)}
+              >
+                {file.name}
+              </button>
+            ))}
           </div>
         </div>
-      )}
+        <div className="card stack">
+          <div className="section-title">{selectedFileName || "请选择文件"}</div>
+          <div className="hint">
+            {currentFile?.missing ? "该文件当前不存在，保存后会创建。" : "直接修改后点击“保存文件”即可下发。"}
+          </div>
+          {loadingContent ? <div className="hint">文件内容加载中...</div> : null}
+          <label>
+            文件内容
+            <textarea
+              value={content}
+              onChange={(event) => setContent(event.target.value)}
+              disabled={!selectedFileName}
+            />
+          </label>
+        </div>
+      </div>
     </section>
   );
 }

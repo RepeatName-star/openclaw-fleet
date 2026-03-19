@@ -4,6 +4,8 @@ import type {
   EventItem,
   GroupItem,
   GroupMatchItem,
+  InstanceFileItem,
+  InstanceFileSaveResult,
   InstanceLabelItem,
   PaginatedItems,
   InstanceSummary,
@@ -26,6 +28,13 @@ export type ApiClient = {
     id: string,
     data: { name?: string; display_name?: string; control_ui_url?: string },
   ) => Promise<InstanceSummary>;
+  listInstanceFiles: (instanceId: string) => Promise<InstanceFileItem[]>;
+  getInstanceFile: (instanceId: string, name: string) => Promise<InstanceFileItem>;
+  updateInstanceFile: (
+    instanceId: string,
+    name: string,
+    data: { content: string },
+  ) => Promise<InstanceFileSaveResult>;
   listTasks: (filters?: Record<string, string>) => Promise<TaskItem[]>;
   listTasksPage: (filters?: {
     q?: string;
@@ -221,6 +230,20 @@ export function createApiClient(baseUrl = "", fetcher: Fetcher = fetch): ApiClie
     ) {
       return request<InstanceSummary>(`/v1/instances/${id}`, {
         method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(data),
+      });
+    },
+    async listInstanceFiles(instanceId: string) {
+      const data = await request<{ items: InstanceFileItem[] }>(`/v1/instances/${instanceId}/files`);
+      return data.items ?? [];
+    },
+    async getInstanceFile(instanceId: string, name: string) {
+      return request<InstanceFileItem>(`/v1/instances/${instanceId}/files/${encodeURIComponent(name)}`);
+    },
+    async updateInstanceFile(instanceId: string, name: string, data: { content: string }) {
+      return request<InstanceFileSaveResult>(`/v1/instances/${instanceId}/files/${encodeURIComponent(name)}`, {
+        method: "PUT",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(data),
       });

@@ -41,7 +41,8 @@ test("skills page renders", () => {
 
 test("memory page renders", () => {
   const html = render(React.createElement(MemoryPage));
-  expect(html).toContain("Memory");
+  expect(html).toContain("文件与记忆");
+  expect(html).toContain("保存文件");
 });
 
 test("labels page renders", () => {

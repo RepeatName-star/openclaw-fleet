@@ -16,6 +16,19 @@ export type InstanceSummary = {
   skills_snapshot_at?: string | null;
 };
 
+export type InstanceFileItem = {
+  name: string;
+  missing: boolean;
+  size?: number;
+  updated_at_ms?: number;
+  content?: string;
+};
+
+export type InstanceFileSaveResult = {
+  ok: boolean;
+  file: InstanceFileItem;
+};
+
 export type TaskItem = {
   id: string;
   target_type: string;

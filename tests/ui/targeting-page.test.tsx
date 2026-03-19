@@ -83,7 +83,7 @@ test("targeting route combines groups, labels, and match preview", async () => {
 
   expect(await screen.findByText("prod-workers")).toBeTruthy();
   expect(await screen.findByText("实例标签")).toBeTruthy();
-  expect(screen.getByText("biz.openclaw.io/openclaw")).toBeTruthy();
+  expect(await screen.findByText("biz.openclaw.io/openclaw")).toBeTruthy();
 
   fireEvent.click(screen.getByRole("button", { name: "Matches" }));
 
