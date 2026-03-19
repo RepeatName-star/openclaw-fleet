@@ -110,6 +110,8 @@ export default function CampaignsPage() {
   const [selector, setSelector] = useState("");
   const [action, setAction] = useState("skills.status");
   const [payloadRaw, setPayloadRaw] = useState("{}");
+  const [payloadEditorOpen, setPayloadEditorOpen] = useState(false);
+  const [payloadEditorRaw, setPayloadEditorRaw] = useState("{}");
   const [gateRaw, setGateRaw] = useState("{}");
   const [rolloutRaw, setRolloutRaw] = useState("{}");
   const [expiresAt, setExpiresAt] = useState("");
@@ -176,6 +178,18 @@ export default function CampaignsPage() {
       throw new Error(`${label} 必须是 JSON object`);
     }
     return parsed as Record<string, unknown>;
+  }
+
+  function openPayloadEditor() {
+    const trimmed = payloadRaw.trim();
+    setPayloadEditorRaw(!trimmed || trimmed === "{}" ? actionDoc.example : payloadRaw);
+    setPayloadEditorOpen(true);
+  }
+
+  function savePayloadEditor() {
+    const payload = parseJsonObject(payloadEditorRaw, "payload");
+    setPayloadRaw(JSON.stringify(payload, null, 2));
+    setPayloadEditorOpen(false);
   }
 
   async function handleCreate(event: React.FormEvent) {
@@ -365,10 +379,16 @@ export default function CampaignsPage() {
             </label>
           </div>
           <div className="grid-two">
-            <label>
-              Payload (JSON object)
-              <textarea value={payloadRaw} onChange={(event) => setPayloadRaw(event.target.value)} />
-            </label>
+            <div className="card stack" style={{ background: "transparent", boxShadow: "none", padding: 0 }}>
+              <div className="section-title">Payload</div>
+              <div className="hint">按 action 使用专属示例，再在弹窗里修改 JSON。</div>
+              <pre className="code-block">{payloadRaw}</pre>
+              <div className="row-actions">
+                <button type="button" className="ghost" onClick={openPayloadEditor}>
+                  编辑 Payload
+                </button>
+              </div>
+            </div>
             <div className="stack">
               <label>
                 Gate (JSON object)
@@ -583,6 +603,40 @@ export default function CampaignsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      ) : null}
+
+      {payloadEditorOpen ? (
+        <div className="modal-backdrop">
+          <div className="modal" role="dialog" aria-modal="true" aria-label="编辑 Payload JSON">
+            <header className="modal-header">
+              <div>
+                <div className="section-title">编辑 Payload JSON</div>
+                <div className="hint">按当前 action 的示例修改后保存回创建表单。</div>
+              </div>
+              <button type="button" className="ghost" onClick={() => setPayloadEditorOpen(false)}>
+                关闭
+              </button>
+            </header>
+            <div className="modal-body">
+              <div className="stack">
+                <div className="hint">当前 action 的示例和说明仍显示在创建表单下方，这里只编辑最终要提交的 JSON。</div>
+                <label>
+                  Payload JSON
+                  <textarea value={payloadEditorRaw} onChange={(event) => setPayloadEditorRaw(event.target.value)} />
+                </label>
+                <pre className="code-block">{actionDoc.example}</pre>
+                <div className="modal-actions">
+                  <button type="button" onClick={savePayloadEditor}>
+                    保存 Payload
+                  </button>
+                  <button type="button" className="ghost" onClick={() => setPayloadEditorOpen(false)}>
+                    取消
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       ) : null}

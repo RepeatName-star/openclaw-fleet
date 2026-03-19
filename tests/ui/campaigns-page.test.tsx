@@ -82,6 +82,34 @@ test("campaigns page shows action-specific payload guidance", async () => {
   expect(screen.getByText(/"raw"/)).toBeTruthy();
 });
 
+test("campaign payload modal saves json back into the create form", async () => {
+  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url === "/v1/campaigns") {
+      return jsonResponse({ items: [] });
+    }
+    if (url === "/v1/groups") {
+      return jsonResponse({ items: [] });
+    }
+    throw new Error(`unexpected url: ${url}`);
+  });
+  vi.stubGlobal("fetch", fetchMock);
+
+  render(<CampaignsPage />);
+
+  fireEvent.change(await screen.findByLabelText("Action"), {
+    target: { value: "agent.run" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "编辑 Payload" }));
+
+  fireEvent.change(screen.getByLabelText("Payload JSON"), {
+    target: { value: '{\n  "message": "hello"\n}' },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "保存 Payload" }));
+
+  expect(await screen.findByText(/"message": "hello"/)).toBeTruthy();
+});
+
 test("campaigns page starts with empty selector instead of invalid prefix fragment", async () => {
   const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
