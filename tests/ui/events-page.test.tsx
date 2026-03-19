@@ -59,12 +59,12 @@ test("events page lists deleted campaigns in the filter dropdown", async () => {
       return jsonResponse({ items: [] });
     }
 
-    if (url === "/v1/events?limit=200" && method === "GET") {
-      return jsonResponse({ items: [] });
+    if (url === "/v1/events?page=1&page_size=10" && method === "GET") {
+      return jsonResponse({ items: [], total: 0, page: 1, page_size: 10 });
     }
 
-    if (url === "/v1/events?campaign_id=c-deleted&limit=200" && method === "GET") {
-      return jsonResponse({ items: [] });
+    if (url === "/v1/events?campaign_id=c-deleted&page=1&page_size=10" && method === "GET") {
+      return jsonResponse({ items: [], total: 0, page: 1, page_size: 10 });
     }
 
     throw new Error(`unexpected ${method} ${url}`);
@@ -73,7 +73,7 @@ test("events page lists deleted campaigns in the filter dropdown", async () => {
 
   render(<EventsPage />);
 
-  const campaignField = await screen.findByLabelText("Campaign");
+  const campaignField = await screen.findByLabelText("批量任务");
   expect(campaignField.tagName).toBe("SELECT");
   expect(
     await screen.findByRole("option", { name: "deleted-campaign [deleted] (c-delete)" }),
@@ -83,6 +83,9 @@ test("events page lists deleted campaigns in the filter dropdown", async () => {
   fireEvent.click(screen.getByRole("button", { name: "查询" }));
 
   await waitFor(() =>
-    expect(requests).toContainEqual({ url: "/v1/events?campaign_id=c-deleted&limit=200", method: "GET" }),
+    expect(requests).toContainEqual({
+      url: "/v1/events?campaign_id=c-deleted&page=1&page_size=10",
+      method: "GET",
+    }),
   );
 });

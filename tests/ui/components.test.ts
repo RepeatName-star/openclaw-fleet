@@ -24,7 +24,8 @@ test("instances page renders", () => {
 
 test("tasks page renders", () => {
   const html = render(React.createElement(TasksPage));
-  expect(html).toContain("Tasks");
+  expect(html).toContain("任务与审计");
+  expect(html).toContain("任务列表");
 });
 
 test("task detail page renders", () => {
@@ -62,7 +63,8 @@ test("campaigns page renders", () => {
 
 test("events page renders", () => {
   const html = render(React.createElement(EventsPage));
-  expect(html).toContain("Events");
+  expect(html).toContain("任务与审计");
+  expect(html).toContain("审计事件");
   expect(html).toContain("导出 JSONL");
 });
 

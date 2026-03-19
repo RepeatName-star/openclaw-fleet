@@ -23,13 +23,13 @@ test("App shows operator-oriented chinese navigation", () => {
   window.location.hash = "#/operations";
   const { unmount } = render(<App />);
 
-  expect(screen.getByText("全局概览")).toBeTruthy();
-  expect(screen.getByText("实例")).toBeTruthy();
+  expect(screen.getAllByText("全局概览").length).toBeGreaterThan(0);
+  expect(screen.getAllByText("实例").length).toBeGreaterThan(0);
   expect(screen.getAllByText("任务与审计").length).toBeGreaterThan(0);
-  expect(screen.getByText("技能管理")).toBeTruthy();
-  expect(screen.getByText("分组与标签")).toBeTruthy();
-  expect(screen.getByText("批量任务")).toBeTruthy();
-  expect(screen.getByText("文件与记忆")).toBeTruthy();
+  expect(screen.getAllByText("技能管理").length).toBeGreaterThan(0);
+  expect(screen.getAllByText("分组与标签").length).toBeGreaterThan(0);
+  expect(screen.getAllByText("批量任务").length).toBeGreaterThan(0);
+  expect(screen.getAllByText("文件与记忆").length).toBeGreaterThan(0);
 
   unmount();
   globalThis.fetch = originalFetch;

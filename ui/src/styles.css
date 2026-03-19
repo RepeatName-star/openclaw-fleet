@@ -252,6 +252,22 @@ textarea {
   align-items: center;
 }
 
+.filters-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.filters-wrap {
+  flex-wrap: wrap;
+}
+
+.grow {
+  flex: 1 1 220px;
+}
+
 .filters-page-size {
   display: inline-flex;
   align-items: center;

@@ -20,10 +20,13 @@ export type TaskItem = {
   id: string;
   target_type: string;
   target_id: string;
+  task_name?: string | null;
   action: string;
   status: string;
   attempts: number;
   updated_at: string;
+  instance_name?: string | null;
+  instance_display_name?: string | null;
 };
 
 export type TaskAttempt = {
