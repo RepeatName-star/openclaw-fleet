@@ -46,13 +46,13 @@ test("memory page renders", () => {
 
 test("labels page renders", () => {
   const html = render(React.createElement(LabelsPage));
-  expect(html).toContain("Labels");
-  expect(html).toContain("选择实例");
+  expect(html).toContain("分组与标签");
+  expect(html).toContain("实例标签");
 });
 
 test("groups page renders", () => {
   const html = render(React.createElement(GroupsPage));
-  expect(html).toContain("Groups");
+  expect(html).toContain("分组与标签");
   expect(html).toContain("创建分组");
 });
 
