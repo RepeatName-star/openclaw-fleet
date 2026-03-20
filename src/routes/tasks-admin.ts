@@ -72,6 +72,7 @@ export async function registerTasksAdminRoutes(app: FastifyInstance, opts: Tasks
     ) as Record<string, unknown>;
     await insertEvent(opts.pool, {
       event_type: "exec.queued",
+      task_id: taskId,
       instance_id: parsed.data.target_type === "instance" ? parsed.data.target_id : null,
       artifact_id: artifact.id,
       payload: {

@@ -54,6 +54,33 @@ test("GET /v1/events supports pagination with stable ordering", async () => {
   expect(res.json().items[0].event_type).toBe("exec.started");
 });
 
+test("GET /v1/events supports task_id filtering", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+  const pool = createTestPool(db);
+  await pool.query(
+    "insert into events (event_type, payload, labels_snapshot) values ($1,$2,$3), ($4,$5,$6)",
+    [
+      "exec.finished",
+      { task_id: "11111111-1111-1111-1111-111111111111", action: "agent.run" },
+      {},
+      "exec.finished",
+      { task_id: "22222222-2222-2222-2222-222222222222", action: "agent.run" },
+      {},
+    ],
+  );
+  const app = await buildServer({ pool });
+
+  const res = await app.inject({
+    method: "GET",
+    url: "/v1/events?task_id=11111111-1111-1111-1111-111111111111",
+  });
+
+  expect(res.statusCode).toBe(200);
+  expect(res.json().items).toHaveLength(1);
+  expect(res.json().items[0].payload.task_id).toBe("11111111-1111-1111-1111-111111111111");
+});
+
 test("GET /v1/events/export returns JSONL", async () => {
   const db = initTestDb();
   await runMigrations(db);

@@ -93,6 +93,7 @@ export async function registerTasksPullRoutes(app: FastifyInstance, opts: TasksP
       const eventType = campaignId ? "exec.started" : isProbeAction(taskAction) ? "probe.started" : "exec.started";
       await insertEvent(opts.pool, {
         event_type: eventType,
+        task_id: taskId,
         campaign_id: campaignId,
         campaign_generation: campaignGen,
         instance_id: instanceId,

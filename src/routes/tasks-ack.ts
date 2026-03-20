@@ -188,6 +188,7 @@ export async function registerTasksAckRoutes(app: FastifyInstance, opts: TasksAc
       });
       await insertEvent(opts.pool, {
         event_type: eventType,
+        task_id: taskId,
         campaign_id: campaignId,
         campaign_generation: campaignGen,
         instance_id: executingInstanceId,
@@ -248,6 +249,7 @@ export async function registerTasksAckRoutes(app: FastifyInstance, opts: TasksAc
         : null;
     await insertEvent(opts.pool, {
       event_type: eventType,
+      task_id: taskId,
       campaign_id: campaignId,
       campaign_generation: campaignGen,
       instance_id: executingInstanceId,
