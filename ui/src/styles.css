@@ -532,6 +532,14 @@ textarea {
   flex-direction: column;
 }
 
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .result-summary {
   padding: 14px 16px;
   border-radius: 12px;
