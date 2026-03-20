@@ -146,7 +146,8 @@ test("operations route switches to searchable audit events tab", async () => {
             campaign_id: "camp-1",
             campaign_generation: 1,
             instance_id: "inst-1",
-            instance_name: "北京控制面",
+            instance_name: "iZ2ze1f788nwbjasqed9acZ",
+            instance_display_name: "北京控制面",
             labels_snapshot: { "biz.openclaw.io/openclaw": "true" },
             payload: { action: "skills.status", status: "ok" },
             artifact_id: null,
@@ -169,6 +170,7 @@ test("operations route switches to searchable audit events tab", async () => {
   fireEvent.click(await screen.findByRole("button", { name: "审计事件" }));
 
   expect(await screen.findByText("exec.finished")).toBeTruthy();
+  expect(screen.getByText("北京控制面")).toBeTruthy();
   expect(screen.getByLabelText("批量任务")).toBeTruthy();
   expect(screen.getByLabelText("实例")).toBeTruthy();
   expect(screen.getByLabelText("事件类型")).toBeTruthy();

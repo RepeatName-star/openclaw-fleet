@@ -42,7 +42,7 @@ test("targeting route combines groups, labels, and match preview", async () => {
 
     if (url === "/v1/groups/g-1/matches" && method === "GET") {
       return jsonResponse({
-        items: [{ id: "i-1", name: "北京控制面" }],
+        items: [{ id: "i-1", name: "node-1", display_name: "北京控制面" }],
       });
     }
 

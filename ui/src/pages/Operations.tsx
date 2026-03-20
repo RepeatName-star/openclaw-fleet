@@ -73,6 +73,10 @@ function taskTargetLabel(task: TaskItem) {
   return task.instance_display_name || task.instance_name || `${task.target_type}:${task.target_id.slice(0, 8)}`;
 }
 
+function eventInstanceLabel(event: EventItem) {
+  return event.instance_display_name || event.instance_name || "-";
+}
+
 export default function OperationsPage({ initialTab = "tasks" }: OperationsPageProps) {
   const api = useMemo(() => createApiClient(), []);
   const [tab, setTab] = useState<"tasks" | "events">(initialTab);
@@ -512,8 +516,12 @@ export default function OperationsPage({ initialTab = "tasks" }: OperationsPageP
                   <div className="mono small">{new Date(item.ts).toLocaleString()}</div>
                   <div className="mono small">{item.event_type}</div>
                   <div className="stack">
-                    <div>{item.instance_name ?? "-"}</div>
-                    <div className="muted mono small">{item.instance_id?.slice(0, 8) ?? "-"}</div>
+                    <div>{eventInstanceLabel(item)}</div>
+                    <div className="muted mono small">
+                      {item.instance_display_name && item.instance_name && item.instance_display_name !== item.instance_name
+                        ? item.instance_name
+                        : item.instance_id?.slice(0, 8) ?? "-"}
+                    </div>
                   </div>
                   <div className="stack">
                     <div>
@@ -586,7 +594,16 @@ export default function OperationsPage({ initialTab = "tasks" }: OperationsPageP
                 </div>
                 <div>
                   <div className="label">实例</div>
-                  <div className="mono small">{selectedEvent.instance_name ?? "-"}</div>
+                  <div className="stack">
+                    <div>{eventInstanceLabel(selectedEvent)}</div>
+                    <div className="muted mono small">
+                      {selectedEvent.instance_display_name &&
+                      selectedEvent.instance_name &&
+                      selectedEvent.instance_display_name !== selectedEvent.instance_name
+                        ? selectedEvent.instance_name
+                        : selectedEvent.instance_id ?? "-"}
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <div className="label">批量任务</div>

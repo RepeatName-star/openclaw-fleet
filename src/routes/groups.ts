@@ -181,7 +181,9 @@ export async function registerGroupsRoutes(app: FastifyInstance, opts: GroupsRou
       return;
     }
 
-    const instances = await opts.pool.query("select id, name from instances order by created_at asc");
+    const instances = await opts.pool.query(
+      "select id, name, display_name from instances order by created_at asc",
+    );
     const labelsRes = await opts.pool.query(
       "select instance_id, key, value from instance_labels order by key asc",
     );
@@ -193,11 +195,15 @@ export async function registerGroupsRoutes(app: FastifyInstance, opts: GroupsRou
       byInstance.set(iid, map);
     }
 
-    const items = [] as Array<{ id: string; name: string }>;
+    const items = [] as Array<{ id: string; name: string; display_name: string | null }>;
     for (const inst of instances.rows) {
       const labels = byInstance.get(inst.id as string) ?? {};
       if (matchLabelSelector(parsed.selector, labels)) {
-        items.push({ id: inst.id as string, name: inst.name as string });
+        items.push({
+          id: inst.id as string,
+          name: inst.name as string,
+          display_name: inst.display_name ? String(inst.display_name) : null,
+        });
       }
     }
     reply.send({ items });

@@ -6,6 +6,10 @@ function primaryInstanceName(instance: InstanceSummary) {
   return instance.display_name || instance.name;
 }
 
+function primaryMatchName(instance: GroupMatchItem) {
+  return instance.display_name || instance.name;
+}
+
 export default function TargetingPage() {
   const api = useMemo(() => createApiClient(), []);
   const [groups, setGroups] = useState<GroupItem[]>([]);
@@ -415,7 +419,12 @@ export default function TargetingPage() {
                 className="table-row"
                 style={{ gridTemplateColumns: "minmax(0, 1fr) minmax(0, 2fr)" }}
               >
-                <div>{item.name}</div>
+                <div className="stack">
+                  <div>{primaryMatchName(item)}</div>
+                  {item.display_name && item.display_name !== item.name ? (
+                    <div className="muted mono small">{item.name}</div>
+                  ) : null}
+                </div>
                 <div className="mono">{item.id}</div>
               </div>
             ))}

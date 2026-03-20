@@ -71,3 +71,36 @@ test("GET /v1/groups supports q and pagination", async () => {
   expect(res.json().items).toHaveLength(1);
   expect(res.json().items[0].name).toBe("workers-b");
 });
+
+test("GET /v1/groups/:id/matches includes display_name for matched instances", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+  const pool = createTestPool(db);
+  const group = await pool.query(
+    "insert into groups (name, selector) values ($1, $2) returning id",
+    ["openclaw", "biz.openclaw.io/openclaw=true"],
+  );
+  const instance = await pool.query(
+    "insert into instances (name, display_name) values ($1, $2) returning id",
+    ["iZ2ze1f788nwbjasqed9acZ", "北京控制面"],
+  );
+  await pool.query(
+    "insert into instance_labels (instance_id, key, value, source) values ($1, $2, $3, $4)",
+    [instance.rows[0].id, "biz.openclaw.io/openclaw", "true", "business"],
+  );
+  const app = await buildServer({ pool, redis });
+
+  const res = await app.inject({
+    method: "GET",
+    url: `/v1/groups/${group.rows[0].id}/matches`,
+  });
+
+  expect(res.statusCode).toBe(200);
+  expect(res.json().items).toEqual([
+    {
+      id: instance.rows[0].id,
+      name: "iZ2ze1f788nwbjasqed9acZ",
+      display_name: "北京控制面",
+    },
+  ]);
+});

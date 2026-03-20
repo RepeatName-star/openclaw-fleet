@@ -82,6 +82,7 @@ export type GroupItem = {
 export type GroupMatchItem = {
   id: string;
   name: string;
+  display_name?: string | null;
 };
 
 export type CampaignItem = {

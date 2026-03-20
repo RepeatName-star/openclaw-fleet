@@ -44,37 +44,40 @@ export async function registerEventsRoutes(app: FastifyInstance, opts: EventsRou
     const args: unknown[] = [];
     let idx = 1;
     if (parsed.data.task_id) {
-      conditions.push(`(task_id::text = $${idx} or (task_id is null and payload->>'task_id' = $${idx}))`);
+      conditions.push(
+        `(e.task_id::text = $${idx} or (e.task_id is null and e.payload->>'task_id' = $${idx}))`,
+      );
       args.push(parsed.data.task_id);
       idx += 1;
     }
     if (parsed.data.campaign_id) {
-      conditions.push(`campaign_id = $${idx++}`);
+      conditions.push(`e.campaign_id = $${idx++}`);
       args.push(parsed.data.campaign_id);
     }
     if (parsed.data.instance_id) {
-      conditions.push(`instance_id = $${idx++}`);
+      conditions.push(`e.instance_id = $${idx++}`);
       args.push(parsed.data.instance_id);
     }
     if (parsed.data.event_type) {
-      conditions.push(`event_type = $${idx++}`);
+      conditions.push(`e.event_type = $${idx++}`);
       args.push(parsed.data.event_type);
     }
     const where = conditions.length ? `where ${conditions.join(" and ")}` : "";
     const page = parsed.data.page ?? 1;
     const pageSize = parsed.data.page_size ?? parsed.data.limit ?? 10;
     const countRes = await opts.pool.query(
-      `select count(*)::int as total from events ${where}`,
+      `select count(*)::int as total from events e ${where}`,
       args,
     );
     args.push(pageSize);
     args.push((page - 1) * pageSize);
 
     const res = await opts.pool.query(
-      `select id, event_type, ts, coalesce(task_id::text, payload->>'task_id') as task_id, campaign_id, campaign_generation, instance_id, instance_name, labels_snapshot, facts_snapshot, payload, artifact_id
-       from events
+      `select e.id, e.event_type, e.ts, coalesce(e.task_id::text, e.payload->>'task_id') as task_id, e.campaign_id, e.campaign_generation, e.instance_id, e.instance_name, i.display_name as instance_display_name, e.labels_snapshot, e.facts_snapshot, e.payload, e.artifact_id
+       from events e
+       left join instances i on i.id = e.instance_id
        ${where}
-       order by ts desc, id desc
+       order by e.ts desc, e.id desc
        limit $${idx}
        offset $${idx + 1}`,
       args,
@@ -102,25 +105,31 @@ export async function registerEventsRoutes(app: FastifyInstance, opts: EventsRou
     const args: unknown[] = [];
     let idx = 1;
     if (parsed.data.task_id) {
-      conditions.push(`(task_id::text = $${idx} or (task_id is null and payload->>'task_id' = $${idx}))`);
+      conditions.push(
+        `(e.task_id::text = $${idx} or (e.task_id is null and e.payload->>'task_id' = $${idx}))`,
+      );
       args.push(parsed.data.task_id);
       idx += 1;
     }
     if (parsed.data.campaign_id) {
-      conditions.push(`campaign_id = $${idx++}`);
+      conditions.push(`e.campaign_id = $${idx++}`);
       args.push(parsed.data.campaign_id);
     }
     if (parsed.data.instance_id) {
-      conditions.push(`instance_id = $${idx++}`);
+      conditions.push(`e.instance_id = $${idx++}`);
       args.push(parsed.data.instance_id);
     }
     if (parsed.data.event_type) {
-      conditions.push(`event_type = $${idx++}`);
+      conditions.push(`e.event_type = $${idx++}`);
       args.push(parsed.data.event_type);
     }
     const where = conditions.length ? `where ${conditions.join(" and ")}` : "";
     const res = await opts.pool.query(
-      `select ts, event_type, coalesce(task_id::text, payload->>'task_id') as task_id, campaign_id, campaign_generation, instance_id, instance_name, labels_snapshot, facts_snapshot, artifact_id, payload from events ${where} order by ts asc`,
+      `select e.ts, e.event_type, coalesce(e.task_id::text, e.payload->>'task_id') as task_id, e.campaign_id, e.campaign_generation, e.instance_id, e.instance_name, i.display_name as instance_display_name, e.labels_snapshot, e.facts_snapshot, e.artifact_id, e.payload
+       from events e
+       left join instances i on i.id = e.instance_id
+       ${where}
+       order by e.ts asc`,
       args,
     );
 
@@ -134,6 +143,7 @@ export async function registerEventsRoutes(app: FastifyInstance, opts: EventsRou
         "campaign_generation",
         "instance_id",
         "instance_name",
+        "instance_display_name",
         "labels_snapshot",
         "facts_snapshot",
         "artifact_id",
@@ -148,6 +158,7 @@ export async function registerEventsRoutes(app: FastifyInstance, opts: EventsRou
           csvEscape(r.campaign_generation),
           csvEscape(r.instance_id),
           csvEscape(r.instance_name),
+          csvEscape(r.instance_display_name),
           csvEscape(JSON.stringify(r.labels_snapshot ?? {})),
           csvEscape(JSON.stringify(r.facts_snapshot ?? null)),
           csvEscape(r.artifact_id),
