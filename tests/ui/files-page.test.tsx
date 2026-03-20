@@ -158,3 +158,45 @@ test("file editor saves content and still supports switching instances", async (
     expect(requests).toContainEqual({ url: "/v1/instances/i-2/files", method: "GET" }),
   );
 });
+
+test("file editor uses operator workspace layout with dedicated navigator and wide editor", async () => {
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+
+    if (url === "/v1/instances" && method === "GET") {
+      return jsonResponse({
+        items: [
+          { id: "i-1", name: "host-1", display_name: "北京主控", updated_at: new Date().toISOString(), online: true },
+        ],
+      });
+    }
+
+    if (url === "/v1/instances/i-1/files" && method === "GET") {
+      return jsonResponse({
+        items: APPROVED_FILES.map((name) => ({
+          name,
+          missing: name !== "AGENTS.md",
+        })),
+      });
+    }
+
+    if (url === "/v1/instances/i-1/files/AGENTS.md" && method === "GET") {
+      return jsonResponse({
+        name: "AGENTS.md",
+        missing: false,
+        content: "# agent policy\n",
+      });
+    }
+
+    throw new Error(`unexpected ${method} ${url}`);
+  });
+  vi.stubGlobal("fetch", fetchMock);
+
+  render(<MemoryPage />);
+
+  expect(await screen.findByTestId("files-layout")).toBeTruthy();
+  expect(screen.getByTestId("files-sidebar").className).toContain("files-sidebar");
+  expect(screen.getByTestId("files-editor").className).toContain("files-editor");
+  expect(screen.getByLabelText("文件内容").className).toContain("editor-textarea");
+});

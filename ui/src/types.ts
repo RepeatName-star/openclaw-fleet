@@ -50,6 +50,7 @@ export type TaskItem = {
   status: string;
   attempts: number;
   updated_at: string;
+  task_origin?: string | null;
   instance_name?: string | null;
   instance_display_name?: string | null;
 };

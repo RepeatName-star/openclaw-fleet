@@ -14,9 +14,14 @@ export default function InstancesPage() {
   const [pageSize, setPageSize] = useState(10);
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [editing, setEditing] = useState<Record<string, string>>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [targetId, setTargetId] = useState<string | undefined>(undefined);
+  const [editor, setEditor] = useState<{
+    instanceId: string;
+    field: "display_name" | "control_ui_url";
+    value: string;
+  } | null>(null);
+  const [savingEditor, setSavingEditor] = useState(false);
 
   const loadInstances = useCallback(async () => {
     try {
@@ -43,22 +48,22 @@ export default function InstancesPage() {
   usePolling(loadInstances, 5000, !modalOpen);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  function handleEdit(id: string, value: string) {
-    setEditing((prev) => ({ ...prev, [id]: value }));
-  }
-
-  async function handleSave(id: string) {
-    const value = editing[id] ?? "";
+  async function handleSaveEditor() {
+    if (!editor) {
+      return;
+    }
+    setSavingEditor(true);
+    setError(null);
     try {
-      await api.updateInstance(id, { display_name: value || undefined });
-      setEditing((prev) => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
+      await api.updateInstance(editor.instanceId, {
+        [editor.field]: editor.value.trim() || undefined,
       });
+      setEditor(null);
       await loadInstances();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSavingEditor(false);
     }
   }
 
@@ -108,12 +113,6 @@ export default function InstancesPage() {
             <div key={instance.id} className="table-row">
               <div>
                 <div className="strong">{instance.display_name || instance.name}</div>
-                <input
-                  className="inline-input"
-                  value={editing[instance.id] ?? instance.display_name ?? ""}
-                  onChange={(event) => handleEdit(instance.id, event.target.value)}
-                  placeholder="填写备注名"
-                />
                 <div className="muted">{instance.id}</div>
               </div>
               <div className="stack">
@@ -139,8 +138,31 @@ export default function InstancesPage() {
               </div>
               <div>{instance.updated_at ? new Date(instance.updated_at).toLocaleString() : "-"}</div>
               <div className="row-actions">
-                <button type="button" className="ghost" onClick={() => handleSave(instance.id)}>
-                  保存备注
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() =>
+                    setEditor({
+                      instanceId: instance.id,
+                      field: "display_name",
+                      value: instance.display_name ?? "",
+                    })
+                  }
+                >
+                  修改备注
+                </button>
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() =>
+                    setEditor({
+                      instanceId: instance.id,
+                      field: "control_ui_url",
+                      value: instance.control_ui_url ?? "",
+                    })
+                  }
+                >
+                  配置控制台
                 </button>
                 <button
                   type="button"
@@ -177,6 +199,46 @@ export default function InstancesPage() {
           window.location.hash = `#/tasks/${id}`;
         }}
       />
+
+      {editor ? (
+        <div className="modal-backdrop">
+          <div className="modal" role="dialog" aria-modal="true" aria-label="修改实例信息">
+            <header className="modal-header">
+              <div className="stack" style={{ gap: 6 }}>
+                <div className="strong">修改实例信息</div>
+                <div className="muted small">
+                  {editor.field === "display_name" ? "修改备注名，列表优先按备注展示。" : "配置该实例的控制台入口 URL。"}
+                </div>
+              </div>
+              <button type="button" className="ghost" onClick={() => setEditor(null)}>
+                关闭
+              </button>
+            </header>
+            <div className="modal-body">
+              <label>
+                {editor.field === "display_name" ? "备注名" : "控制台 URL"}
+                <input
+                  value={editor.value}
+                  onChange={(event) =>
+                    setEditor((current) =>
+                      current ? { ...current, value: event.target.value } : current,
+                    )
+                  }
+                  placeholder={editor.field === "display_name" ? "例如：北京主控" : "https://control.example.com"}
+                />
+              </label>
+              <div className="modal-actions">
+                <button type="button" onClick={() => void handleSaveEditor()} disabled={savingEditor}>
+                  {savingEditor ? "保存中..." : "保存"}
+                </button>
+                <button type="button" className="ghost" onClick={() => setEditor(null)} disabled={savingEditor}>
+                  取消
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

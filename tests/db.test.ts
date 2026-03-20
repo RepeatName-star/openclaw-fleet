@@ -75,4 +75,5 @@ test("ui v0.2 ops migrations add display metadata and task naming columns", asyn
   );
   const taskNames = taskColumns.rows.map((row) => row.column_name);
   expect(taskNames).toContain("task_name");
+  expect(taskNames).toContain("task_origin");
 });

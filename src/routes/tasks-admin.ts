@@ -40,7 +40,7 @@ export async function registerTasksAdminRoutes(app: FastifyInstance, opts: Tasks
 
     const payload = parsed.data.payload ?? {};
     const res = await opts.pool.query(
-      "insert into tasks (target_type, target_id, task_name, action, payload, expires_at) values ($1, $2, $3, $4, $5, $6) returning id",
+      "insert into tasks (target_type, target_id, task_name, action, payload, expires_at, task_origin) values ($1, $2, $3, $4, $5, $6, 'manual') returning id",
       [
         parsed.data.target_type,
         parsed.data.target_id,

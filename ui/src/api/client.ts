@@ -42,6 +42,7 @@ export type ApiClient = {
     q?: string;
     action?: string;
     status?: string;
+    task_origin?: string;
     page?: number;
     page_size?: number;
   }) => Promise<PaginatedItems<TaskItem>>;
@@ -162,6 +163,7 @@ export function createApiClient(baseUrl = "", fetcher: Fetcher = fetch): ApiClie
     q?: string;
     action?: string;
     status?: string;
+    task_origin?: string;
     page?: number;
     page_size?: number;
   } = {}) {
@@ -205,8 +207,28 @@ export function createApiClient(baseUrl = "", fetcher: Fetcher = fetch): ApiClie
 
   return {
     async listInstances() {
-      const data = await request<PaginatedItems<InstanceSummary>>("/v1/instances");
-      return data.items ?? [];
+      const firstPage = await request<PaginatedItems<InstanceSummary>>("/v1/instances");
+      const items = [...(firstPage.items ?? [])];
+      const total = typeof firstPage.total === "number" ? firstPage.total : items.length;
+      const pageSize = typeof firstPage.page_size === "number" ? firstPage.page_size : 0;
+      const startPage = typeof firstPage.page === "number" ? firstPage.page : 1;
+
+      if (!pageSize || items.length >= total) {
+        return items;
+      }
+
+      for (let page = startPage + 1; items.length < total; page += 1) {
+        const nextPage = await request<PaginatedItems<InstanceSummary>>(
+          `/v1/instances?page=${page}&page_size=${pageSize}`,
+        );
+        const nextItems = nextPage.items ?? [];
+        if (nextItems.length === 0) {
+          break;
+        }
+        items.push(...nextItems);
+      }
+
+      return items;
     },
     async listInstancesPage(filters = {}) {
       const params = new URLSearchParams(

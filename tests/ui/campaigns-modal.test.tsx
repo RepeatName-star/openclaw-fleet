@@ -37,7 +37,8 @@ test("campaign payload editor modal seeds example json and help for the selected
   fireEvent.click(screen.getByRole("button", { name: "编辑 Payload" }));
 
   expect(await screen.findByText("编辑 Payload JSON")).toBeTruthy();
-  expect(screen.getByText(/fleet\.config_patch payload/i)).toBeTruthy();
   expect(screen.getByText(/自动通过 config\.get 获取每台实例当前 hash/i)).toBeTruthy();
+  expect(screen.getByText(/raw：/)).toBeTruthy();
+  expect(screen.getByText(/restartDelayMs：/)).toBeTruthy();
   expect((screen.getByLabelText("Payload JSON") as HTMLTextAreaElement).value).toContain("\"raw\"");
 });

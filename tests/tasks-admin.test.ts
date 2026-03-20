@@ -41,8 +41,9 @@ test("POST /v1/tasks accepts optional task_name", async () => {
   });
 
   expect(res.statusCode).toBe(200);
-  const stored = await pool.query("select task_name from tasks where id = $1", [res.json().id]);
+  const stored = await pool.query("select task_name, task_origin from tasks where id = $1", [res.json().id]);
   expect(stored.rows[0].task_name).toBe("refresh skills inventory");
+  expect(stored.rows[0].task_origin).toBe("manual");
 });
 
 test("POST /v1/tasks emits audit event with redacted message and raw payload artifact", async () => {

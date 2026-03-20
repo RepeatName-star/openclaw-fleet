@@ -6,23 +6,22 @@ import { usePolling } from "../hooks/usePolling.js";
 const ACTION_DOCS: Record<
   string,
   {
-    title: string;
     example: string;
     note: string;
+    fields: Array<{ name: string; description: string }>;
   }
 > = {
   "skills.status": {
-    title: "skills.status payload",
     example: "{}",
     note: "读取当前实例的 skills 快照；v0.1 常用为空对象。",
+    fields: [],
   },
   "fleet.gateway.probe": {
-    title: "fleet.gateway.probe payload",
     example: "{}",
     note: "探测 gateway 可达性与 OpenClaw 版本；无需额外参数。",
+    fields: [],
   },
   "fleet.config_patch": {
-    title: "fleet.config_patch payload",
     example: JSON.stringify(
       {
         raw: JSON.stringify(
@@ -41,24 +40,42 @@ const ACTION_DOCS: Record<
       2,
     ),
     note: "自动通过 config.get 获取每台实例当前 hash，再调用原生 config.patch；这是批量改配置的默认入口。",
+    fields: [
+      { name: "raw", description: "要写入的 JSON/JSON5 配置片段字符串。" },
+      { name: "note", description: "可选，变更备注，便于审计和回溯。" },
+      { name: "sessionKey", description: "可选，指定要复用的会话 key。" },
+      { name: "restartDelayMs", description: "可选，补丁写入后延迟重启的毫秒数。" },
+    ],
   },
   "fleet.skill_bundle.install": {
-    title: "fleet.skill_bundle.install payload",
     example: JSON.stringify({ bundleId: "<bundleId>", name: "demo-skill", sha256: "<sha256>" }, null, 2),
     note: "通过控制面分发并安装 tar.gz bundle，name 会作为 ~/.openclaw-fleet/skills 下的目录名。",
+    fields: [
+      { name: "bundleId", description: "控制面中上传后的 bundle ID。" },
+      { name: "name", description: "安装后的技能目录名。" },
+      { name: "sha256", description: "bundle 的校验值，用于 sidecar 校验下载内容。" },
+    ],
   },
   "skills.update": {
-    title: "skills.update payload",
     example: JSON.stringify({ skillKey: "weather", enabled: true, apiKey: "", env: { FOO: "bar" } }, null, 2),
     note: "更新单个 skill 的启用状态、apiKey 或 env；空字符串表示清空对应值。",
+    fields: [
+      { name: "skillKey", description: "要更新的技能 key。" },
+      { name: "enabled", description: "是否启用该技能。" },
+      { name: "apiKey", description: "可选，覆盖技能 API Key。" },
+      { name: "env", description: "可选，额外注入的环境变量对象。" },
+    ],
   },
   "skills.install": {
-    title: "skills.install payload",
     example: JSON.stringify({ name: "weather", installId: "<installId>", timeoutMs: 300000 }, null, 2),
     note: "调用 OpenClaw 原生远程技能安装；installId 为上游安装请求 ID。",
+    fields: [
+      { name: "name", description: "要安装的 skill 名称。" },
+      { name: "installId", description: "OpenClaw 上游返回的安装任务 ID。" },
+      { name: "timeoutMs", description: "可选，等待安装完成的超时毫秒数。" },
+    ],
   },
   "config.patch": {
-    title: "config.patch payload",
     example: JSON.stringify(
       {
         raw: JSON.stringify(
@@ -79,25 +96,39 @@ const ACTION_DOCS: Record<
       2,
     ),
     note: "低层 expert 接口。raw 必须是字符串形式的 JSON/JSON5 片段；当实例已有配置时必须传入 config.get 返回的 hash 作为 baseHash。",
+    fields: [
+      { name: "raw", description: "要应用的 JSON/JSON5 配置片段字符串。" },
+      { name: "baseHash", description: "config.get 返回的当前配置 hash。" },
+      { name: "note", description: "可选，变更说明。" },
+    ],
   },
   "memory.replace": {
-    title: "memory.replace payload",
     example: JSON.stringify({ agentId: "main", content: "# New memory", fileName: "MEMORY.md" }, null, 2),
     note: "覆盖指定 agent 的 memory 文件，然后重置该 agent 的会话。",
+    fields: [
+      { name: "agentId", description: "要修改的 agent ID。" },
+      { name: "fileName", description: "要覆盖的文件名，通常是 MEMORY.md。" },
+      { name: "content", description: "新的完整文件内容。" },
+    ],
   },
   "session.reset": {
-    title: "session.reset payload",
     example: JSON.stringify({ key: "agent:main:main" }, null, 2),
     note: "key 必须是 OpenClaw Gateway 识别的 session key；批量执行时只适合所有目标实例都存在同名 session 的场景。",
+    fields: [{ name: "key", description: "要重置的 session key。" }],
   },
   "agent.run": {
-    title: "agent.run payload",
     example: JSON.stringify(
       { message: "Run diagnostics", agentId: "main", sessionKey: "agent:main:main", timeoutMs: 300000 },
       null,
       2,
     ),
     note: "message 为必填；agentId/sessionKey 不填时由实例自身按默认行为处理。timeoutMs 可选，默认等待最终响应 5 分钟。",
+    fields: [
+      { name: "message", description: "发送给 agent 的文本。" },
+      { name: "agentId", description: "可选，指定 agent ID，默认通常是 main。" },
+      { name: "sessionKey", description: "可选，会话 key，用于复用已有会话。" },
+      { name: "timeoutMs", description: "可选，等待最终响应的超时毫秒数。" },
+    ],
   },
 };
 
@@ -158,9 +189,9 @@ export default function CampaignsPage() {
   usePolling(load, 5000, true);
 
   const actionDoc = ACTION_DOCS[action] ?? {
-    title: `${action} payload`,
     example: "{}",
     note: "当前 action 还没有专门的表单，请按 JSON object 直接填写。",
+    fields: [],
   };
 
   function parseJsonObject(raw: string, label: string): Record<string, unknown> {
@@ -324,7 +355,7 @@ export default function CampaignsPage() {
     <section className="page">
       <header className="page-header">
         <div>
-          <h1>Campaigns</h1>
+          <h1>批量任务</h1>
           <p>按 selector fan-out 执行任务（动态成员，best-effort）。</p>
         </div>
       </header>
@@ -332,7 +363,7 @@ export default function CampaignsPage() {
       {error ? <div className="error">{error}</div> : null}
 
       <div className="card stack">
-        <div className="section-title">创建 Campaign</div>
+        <div className="section-title">创建批量任务</div>
         <form className="stack" onSubmit={handleCreate}>
           <div className="grid-two">
             <label>
@@ -381,7 +412,7 @@ export default function CampaignsPage() {
           <div className="grid-two">
             <div className="card stack" style={{ background: "transparent", boxShadow: "none", padding: 0 }}>
               <div className="section-title">Payload</div>
-              <div className="hint">按 action 使用专属示例，再在弹窗里修改 JSON。</div>
+              <div className="hint">当前待提交的 Payload JSON，点击弹窗编辑。</div>
               <pre className="code-block">{payloadRaw}</pre>
               <div className="row-actions">
                 <button type="button" className="ghost" onClick={openPayloadEditor}>
@@ -407,20 +438,12 @@ export default function CampaignsPage() {
             <button type="button" className="ghost" disabled={busy} onClick={load}>
               刷新列表
             </button>
-            <div className="hint">
-              Gate v0.1 常用：<span className="mono">{`{"minVersion":"0000.0.0"}`}</span>
-            </div>
-          </div>
-          <div className="card stack">
-            <div className="section-title">{actionDoc.title}</div>
-            <pre className="code-block">{actionDoc.example}</pre>
-            <div className="hint">{actionDoc.note}</div>
           </div>
         </form>
       </div>
 
       <div className="card">
-        <div className="section-title">Campaigns</div>
+        <div className="section-title">批量任务列表</div>
         <div className="table">
           <div
             className="table-row header"
@@ -613,7 +636,7 @@ export default function CampaignsPage() {
             <header className="modal-header">
               <div>
                 <div className="section-title">编辑 Payload JSON</div>
-                <div className="hint">按当前 action 的示例修改后保存回创建表单。</div>
+                <div className="hint">按当前 action 的字段说明修改后保存回创建表单。</div>
               </div>
               <button type="button" className="ghost" onClick={() => setPayloadEditorOpen(false)}>
                 关闭
@@ -621,12 +644,27 @@ export default function CampaignsPage() {
             </header>
             <div className="modal-body">
               <div className="stack">
-                <div className="hint">当前 action 的示例和说明仍显示在创建表单下方，这里只编辑最终要提交的 JSON。</div>
+                <div className="hint">{actionDoc.note}</div>
+                {actionDoc.fields.length ? (
+                  <div className="field-help-list">
+                    {actionDoc.fields.map((field) => (
+                      <div key={field.name} className="field-help-item">
+                        <span className="mono">{field.name}：</span>
+                        <span>{field.description}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="hint">当前 action 无额外字段，保持空对象即可。</div>
+                )}
                 <label>
                   Payload JSON
-                  <textarea value={payloadEditorRaw} onChange={(event) => setPayloadEditorRaw(event.target.value)} />
+                  <textarea
+                    className="editor-textarea"
+                    value={payloadEditorRaw}
+                    onChange={(event) => setPayloadEditorRaw(event.target.value)}
+                  />
                 </label>
-                <pre className="code-block">{actionDoc.example}</pre>
                 <div className="modal-actions">
                   <button type="button" onClick={savePayloadEditor}>
                     保存 Payload

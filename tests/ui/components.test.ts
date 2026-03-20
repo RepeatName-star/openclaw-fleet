@@ -32,7 +32,7 @@ test("tasks page renders", () => {
 
 test("task detail page renders", () => {
   const html = render(React.createElement(TaskDetailPage, { taskId: "t1" }));
-  expect(html).toContain("Task Detail");
+  expect(html).toContain("任务详情");
 });
 
 test("skills page renders", () => {
@@ -61,8 +61,8 @@ test("groups page renders", () => {
 
 test("campaigns page renders", () => {
   const html = render(React.createElement(CampaignsPage));
-  expect(html).toContain("Campaigns");
-  expect(html).toContain("创建 Campaign");
+  expect(html).toContain("批量任务");
+  expect(html).toContain("创建批量任务");
 });
 
 test("events page renders", () => {

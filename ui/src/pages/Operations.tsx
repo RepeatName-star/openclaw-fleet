@@ -82,6 +82,7 @@ export default function OperationsPage({ initialTab = "tasks" }: OperationsPageP
   const [taskQuery, setTaskQuery] = useState("");
   const [taskStatus, setTaskStatus] = useState("");
   const [taskAction, setTaskAction] = useState("");
+  const [taskOriginMode, setTaskOriginMode] = useState<"all" | "manual">("all");
   const [taskPageNumber, setTaskPageNumber] = useState(1);
   const [taskPageSize, setTaskPageSize] = useState(10);
   const [eventPage, setEventPage] = useState<PaginatedItems<EventItem>>(emptyPage<EventItem>());
@@ -122,6 +123,7 @@ export default function OperationsPage({ initialTab = "tasks" }: OperationsPageP
 
   const loadTasks = useCallback(async () => {
     const data = await api.listTasksPage({
+      task_origin: taskOriginMode === "manual" ? "manual" : undefined,
       q: taskQuery || undefined,
       action: taskAction || undefined,
       status: taskStatus || undefined,
@@ -129,7 +131,7 @@ export default function OperationsPage({ initialTab = "tasks" }: OperationsPageP
       page_size: taskPageSize,
     });
     setTaskPage(data);
-  }, [api, taskAction, taskPageNumber, taskPageSize, taskQuery, taskStatus]);
+  }, [api, taskAction, taskOriginMode, taskPageNumber, taskPageSize, taskQuery, taskStatus]);
 
   const loadEvents = useCallback(async () => {
     const data = await api.listEventsPage({
@@ -311,6 +313,16 @@ export default function OperationsPage({ initialTab = "tasks" }: OperationsPageP
             placeholder="搜索任务名称 / 实例 / Action"
             rightSlot={
               <>
+                <button
+                  type="button"
+                  className={taskOriginMode === "manual" ? "pill active" : "pill"}
+                  onClick={() => {
+                    setTaskOriginMode((current) => (current === "manual" ? "all" : "manual"));
+                    setTaskPageNumber(1);
+                  }}
+                >
+                  仅手动任务
+                </button>
                 <label className="filters-inline">
                   Action
                   <select
@@ -583,13 +595,17 @@ export default function OperationsPage({ initialTab = "tasks" }: OperationsPageP
               </div>
               <div>
                 <div className="label">Event</div>
-                <pre className="code-block">{JSON.stringify(selectedEvent, null, 2)}</pre>
+                <pre aria-label="Event JSON" className="code-block detail-scroll">
+                  {JSON.stringify(selectedEvent, null, 2)}
+                </pre>
               </div>
               {selectedEvent.artifact_id ? (
                 <div>
                   <div className="label">Artifact</div>
                   {artifact ? (
-                    <pre className="code-block">{JSON.stringify(artifact, null, 2)}</pre>
+                    <pre aria-label="Artifact JSON" className="code-block detail-scroll">
+                      {JSON.stringify(artifact, null, 2)}
+                    </pre>
                   ) : (
                     <div className="hint">
                       {artifactBusy ? "加载 artifact 中..." : "无 artifact 内容或加载失败"}

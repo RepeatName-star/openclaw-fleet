@@ -57,7 +57,7 @@ export default function MemoryPage() {
           if (current && items.some((item) => item.name === current)) {
             return current;
           }
-          return items[0]?.name ?? "";
+          return items.find((item) => !item.missing)?.name ?? items[0]?.name ?? "";
         });
       } catch (err) {
         if (!active) return;
@@ -147,52 +147,59 @@ export default function MemoryPage() {
       {error ? <div className="error">{error}</div> : null}
       {success ? <div className="success">{success}</div> : null}
 
-      <div className="grid-two">
-        <div className="card stack">
-          <label>
-            实例
-            <select value={targetId} onChange={(event) => setTargetId(event.target.value)}>
-              <option value="">选择实例</option>
-              {instances.map((instance) => (
-                <option key={instance.id} value={instance.id}>
-                  {instance.display_name || instance.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="section-title">支持编辑的文件</div>
-          <div className="hint">
-            {currentInstance ? `当前实例：${currentInstance.display_name || currentInstance.name}` : "请先选择实例"}
-          </div>
-          {loadingFiles ? <div className="hint">文件列表加载中...</div> : null}
+      <div className="files-layout" data-testid="files-layout">
+        <aside className="card files-sidebar" data-testid="files-sidebar">
           <div className="stack">
-            {files.map((file) => (
-              <button
-                key={file.name}
-                type="button"
-                className={file.name === selectedFileName ? "" : "ghost"}
-                onClick={() => setSelectedFileName(file.name)}
-              >
-                {file.name}
-              </button>
-            ))}
+            <label>
+              实例
+              <select value={targetId} onChange={(event) => setTargetId(event.target.value)}>
+                <option value="">选择实例</option>
+                {instances.map((instance) => (
+                  <option key={instance.id} value={instance.id}>
+                    {instance.display_name || instance.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="section-title">支持编辑的文件</div>
+            <div className="hint">
+              {currentInstance ? `当前实例：${currentInstance.display_name || currentInstance.name}` : "请先选择实例"}
+            </div>
+            {loadingFiles ? <div className="hint">文件列表加载中...</div> : null}
+            <div className="file-list">
+              {files.map((file) => (
+                <button
+                  key={file.name}
+                  type="button"
+                  aria-label={file.name}
+                  className={file.name === selectedFileName ? "file-item active" : "file-item"}
+                  onClick={() => setSelectedFileName(file.name)}
+                >
+                  <div className="strong">{file.name}</div>
+                  <div className="muted small">{file.missing ? "缺失，保存后创建" : "已托管"}</div>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-        <div className="card stack">
-          <div className="section-title">{selectedFileName || "请选择文件"}</div>
-          <div className="hint">
-            {currentFile?.missing ? "该文件当前不存在，保存后会创建。" : "直接修改后点击“保存文件”即可下发。"}
+        </aside>
+        <section className="card files-editor" data-testid="files-editor">
+          <div className="stack">
+            <div className="section-title">{selectedFileName || "请选择文件"}</div>
+            <div className="hint">
+              {currentFile?.missing ? "该文件当前不存在，保存后会创建。" : "直接修改后点击“保存文件”即可下发。"}
+            </div>
+            {loadingContent ? <div className="hint">文件内容加载中...</div> : null}
+            <label className="stack">
+              <span>文件内容</span>
+              <textarea
+                className="editor-textarea"
+                value={content}
+                onChange={(event) => setContent(event.target.value)}
+                disabled={!selectedFileName}
+              />
+            </label>
           </div>
-          {loadingContent ? <div className="hint">文件内容加载中...</div> : null}
-          <label>
-            文件内容
-            <textarea
-              value={content}
-              onChange={(event) => setContent(event.target.value)}
-              disabled={!selectedFileName}
-            />
-          </label>
-        </div>
+        </section>
       </div>
     </section>
   );

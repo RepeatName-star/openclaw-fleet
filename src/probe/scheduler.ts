@@ -37,7 +37,7 @@ export async function ensureProbeTaskScheduled(
   }
 
   const task = await pool.query(
-    "insert into tasks (target_type, target_id, action, payload) values ('instance',$1,$2,$3) returning id",
+    "insert into tasks (target_type, target_id, action, payload, task_origin) values ('instance',$1,$2,$3,'system') returning id",
     [instanceId, action, {}],
   );
   const taskId = String(task.rows[0].id);

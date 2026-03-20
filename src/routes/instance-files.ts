@@ -48,11 +48,17 @@ async function ensureInstanceExists(pool: Pool, instanceId: string) {
 
 async function enqueueTask(
   pool: Pool,
-  params: { instanceId: string; action: string; payload: Record<string, unknown>; taskName: string },
+  params: {
+    instanceId: string;
+    action: string;
+    payload: Record<string, unknown>;
+    taskName: string;
+    taskOrigin?: "system" | "campaign" | "manual";
+  },
 ) {
   const res = await pool.query(
-    "insert into tasks (target_type, target_id, task_name, action, payload) values ('instance', $1, $2, $3, $4) returning id",
-    [params.instanceId, params.taskName, params.action, params.payload],
+    "insert into tasks (target_type, target_id, task_name, action, payload, task_origin) values ('instance', $1, $2, $3, $4, $5) returning id",
+    [params.instanceId, params.taskName, params.action, params.payload, params.taskOrigin ?? "system"],
   );
   return String(res.rows[0].id);
 }
@@ -105,6 +111,7 @@ export async function registerInstanceFilesRoutes(
       taskName: "list managed files",
       action: "agents.files.list",
       payload: { agentId },
+      taskOrigin: "system",
     });
 
     try {
@@ -151,6 +158,7 @@ export async function registerInstanceFilesRoutes(
       taskName: `read file ${name}`,
       action: "agents.files.get",
       payload: { agentId, name },
+      taskOrigin: "system",
     });
 
     try {
@@ -191,6 +199,7 @@ export async function registerInstanceFilesRoutes(
       taskName: `write file ${name}`,
       action: "agents.files.set",
       payload: { agentId, name, content: parsed.data.content },
+      taskOrigin: "system",
     });
 
     try {

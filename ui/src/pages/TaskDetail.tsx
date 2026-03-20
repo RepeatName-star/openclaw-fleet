@@ -1,21 +1,36 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createApiClient } from "../api/client";
 import type { TaskAttempt } from "../types";
 
 export type TaskDetailProps = {
   taskId: string;
+  pollIntervalMs?: number;
 };
 
-export default function TaskDetailPage({ taskId }: TaskDetailProps) {
+export default function TaskDetailPage({ taskId, pollIntervalMs = 2000 }: TaskDetailProps) {
   const api = useMemo(() => createApiClient(), []);
   const [task, setTask] = useState<any | null>(null);
   const [attempts, setAttempts] = useState<TaskAttempt[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
 
+  const load = useCallback(async () => {
+    try {
+      const [taskData, attemptData] = await Promise.all([
+        api.getTask(taskId),
+        api.getTaskAttempts(taskId),
+      ]);
+      setTask(taskData);
+      setAttempts(attemptData);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }, [api, taskId]);
+
   useEffect(() => {
     let active = true;
-    async function load() {
+    async function run() {
       try {
         const [taskData, attemptData] = await Promise.all([
           api.getTask(taskId),
@@ -29,11 +44,21 @@ export default function TaskDetailPage({ taskId }: TaskDetailProps) {
         setError(err instanceof Error ? err.message : String(err));
       }
     }
-    load();
+    run();
     return () => {
       active = false;
     };
   }, [api, taskId]);
+
+  useEffect(() => {
+    if (task && ["done", "failed"].includes(String(task.status))) {
+      return;
+    }
+    const id = window.setTimeout(() => {
+      void load();
+    }, pollIntervalMs);
+    return () => window.clearTimeout(id);
+  }, [load, pollIntervalMs, task]);
 
   async function handleRetry() {
     if (!task) return;
@@ -58,7 +83,7 @@ export default function TaskDetailPage({ taskId }: TaskDetailProps) {
     <section className="page">
       <header className="page-header">
         <div>
-          <h1>Task Detail</h1>
+          <h1>任务详情</h1>
           <p className="muted mono">{taskId}</p>
         </div>
         <div className="row-actions">

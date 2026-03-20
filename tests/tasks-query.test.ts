@@ -40,6 +40,42 @@ test("GET /v1/tasks supports pagination and task filters", async () => {
   });
 });
 
+test("GET /v1/tasks filters by task origin", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+  const pool = createTestPool(db);
+  await pool.query(
+    "insert into instances (id, name, display_name) values ($1, $2, $3)",
+    ["00000000-0000-0000-0000-000000000111", "host-origin", "origin-control"],
+  );
+  await pool.query(
+    "insert into tasks (target_type, target_id, action, task_name, status, task_origin) values ($1, $2, $3, $4, $5, $6)",
+    ["instance", "00000000-0000-0000-0000-000000000111", "skills.status", "manual task", "done", "manual"],
+  );
+  await pool.query(
+    "insert into tasks (target_type, target_id, action, task_name, status, task_origin) values ($1, $2, $3, $4, $5, $6)",
+    ["instance", "00000000-0000-0000-0000-000000000111", "agents.files.get", "system task", "done", "system"],
+  );
+
+  const app = await buildServer({ pool });
+  const res = await app.inject({
+    method: "GET",
+    url: "/v1/tasks?task_origin=manual&page=1&page_size=10",
+  });
+
+  expect(res.statusCode).toBe(200);
+  expect(res.json()).toMatchObject({
+    total: 1,
+    page: 1,
+    page_size: 10,
+  });
+  expect(res.json().items).toHaveLength(1);
+  expect(res.json().items[0]).toMatchObject({
+    task_name: "manual task",
+    task_origin: "manual",
+  });
+});
+
 test("GET /v1/tasks search matches instance display name", async () => {
   const db = initTestDb();
   await runMigrations(db);

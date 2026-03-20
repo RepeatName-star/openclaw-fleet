@@ -225,7 +225,7 @@ export async function reconcileOpenCampaignsOnce(pool: Pool, deps: ReconcilerDep
     for (const row of pending.rows) {
       const instanceId = String(row.instance_id);
       const task = await pool.query(
-        "insert into tasks (target_type, target_id, action, payload) values ('instance',$1,$2,$3) returning id",
+        "insert into tasks (target_type, target_id, action, payload, task_origin) values ('instance',$1,$2,$3,'campaign') returning id",
         [instanceId, action, payload],
       );
       const taskId = String(task.rows[0].id);

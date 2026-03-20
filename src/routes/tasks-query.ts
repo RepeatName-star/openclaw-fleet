@@ -5,6 +5,7 @@ import type { Pool } from "pg";
 const QuerySchema = z.object({
   status: z.string().optional(),
   action: z.string().optional(),
+  task_origin: z.string().optional(),
   target_type: z.string().optional(),
   target_id: z.string().optional(),
   q: z.string().optional(),
@@ -27,7 +28,7 @@ export async function registerTasksQueryRoutes(app: FastifyInstance, opts: Tasks
       reply.code(400).send({ error: "invalid query" });
       return;
     }
-    const { status, action, target_type, target_id, q, page, page_size } = parsed.data;
+    const { status, action, task_origin, target_type, target_id, q, page, page_size } = parsed.data;
     const filters: string[] = [];
     const values: Array<string | number> = [];
     if (status) {
@@ -37,6 +38,10 @@ export async function registerTasksQueryRoutes(app: FastifyInstance, opts: Tasks
     if (action) {
       values.push(action);
       filters.push(`t.action = $${values.length}`);
+    }
+    if (task_origin) {
+      values.push(task_origin);
+      filters.push(`t.task_origin = $${values.length}`);
     }
     if (target_type) {
       values.push(target_type);
@@ -63,7 +68,7 @@ export async function registerTasksQueryRoutes(app: FastifyInstance, opts: Tasks
     values.push(page_size);
     values.push((page - 1) * page_size);
     const res = await opts.pool.query(
-      `select t.id, t.target_type, t.target_id, t.task_name, t.action, t.status, t.attempts, t.updated_at, i.name as instance_name, i.display_name as instance_display_name ${fromClause} ${whereClause} order by t.created_at desc, t.id desc limit $${values.length - 1} offset $${values.length}`,
+      `select t.id, t.target_type, t.target_id, t.task_name, t.action, t.status, t.attempts, t.updated_at, t.task_origin, i.name as instance_name, i.display_name as instance_display_name ${fromClause} ${whereClause} order by t.created_at desc, t.id desc limit $${values.length - 1} offset $${values.length}`,
       values,
     );
     reply.send({
