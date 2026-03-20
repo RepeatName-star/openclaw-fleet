@@ -2,7 +2,7 @@ import { buildServer } from "../src/server.js";
 import { issueDeviceToken } from "../src/auth.js";
 import { createTestPool, initTestDb, runMigrations } from "./support/db.js";
 
-test("POST /v1/heartbeat updates last_seen", async () => {
+test("POST /v1/heartbeat updates last_seen and ip", async () => {
   const db = initTestDb();
   await runMigrations(db);
   const pool = createTestPool(db);
@@ -30,4 +30,6 @@ test("POST /v1/heartbeat updates last_seen", async () => {
   });
   expect(res.statusCode).toBe(200);
   expect(calls[0]).toEqual([`hb:${instanceId}`, "1", "EX", 90]);
+  const stored = await pool.query("select last_seen_ip from instances where id = $1", [instanceId]);
+  expect(stored.rows[0].last_seen_ip).toEqual(expect.any(String));
 });

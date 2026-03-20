@@ -8,6 +8,16 @@ Base URL: `http://<host>:<port>`
 - **Device token**: sidecar endpoints require `Authorization: Bearer <device_token>`.
 - **Admin/UI endpoints**: in v0.1 most read/write endpoints are **not authenticated** (single-tenant MVP). Protect the service at the network layer.
 
+## Operator Console Query Model
+
+The current web UI assumes a shared list model for operator-facing endpoints:
+
+- list endpoints return `{ items, total, page, page_size }`
+- `page` defaults to `1`
+- `page_size` defaults to `10`
+- page-size choices exposed by the UI are currently `10 / 20 / 50`
+- overview/dashboard cards use `GET /v1/overview`
+
 ---
 
 ## Health
@@ -18,6 +28,31 @@ Response:
 ```json
 { "ok": true }
 ```
+
+---
+
+## Overview
+
+### GET /v1/overview
+
+Response:
+```json
+{
+  "instances_total": 14,
+  "instances_online": 12,
+  "tasks_total": 120,
+  "tasks_pending": 4,
+  "tasks_leased": 1,
+  "tasks_done": 110,
+  "tasks_error": 5,
+  "campaigns_open": 2,
+  "skill_bundles_total": 8
+}
+```
+
+Notes:
+- `instances_online` is derived from active Redis heartbeat keys.
+- The response is intentionally flat for dashboard cards.
 
 ---
 
@@ -139,6 +174,11 @@ Notes:
 
 ### GET /v1/instances
 
+Query:
+- `q` matches `display_name` first, then hostname `name`
+- `page` defaults to `1`
+- `page_size` defaults to `10`
+
 Response:
 ```json
 {
@@ -146,18 +186,23 @@ Response:
     {
       "id": "<uuid>",
       "name": "i-1",
+      "display_name": "beijing-master",
+      "last_seen_ip": "10.0.0.8",
       "updated_at": "<timestamptz>",
       "control_ui_url": "<optional url>",
       "skills_snapshot_at": "<optional timestamptz>",
       "online": true
     }
-  ]
+  ],
+  "total": 1,
+  "page": 1,
+  "page_size": 10
 }
 ```
 
 ### GET /v1/instances/:id
 
-Response: instance row (includes `skills_snapshot` and `skills_snapshot_at`).
+Response: instance row (includes `display_name`, `last_seen_ip`, `skills_snapshot`, and `skills_snapshot_at`).
 
 ### PATCH /v1/instances/:id
 
@@ -165,6 +210,7 @@ Request:
 ```json
 {
   "name": "<optional>",
+  "display_name": "<optional>",
   "control_ui_url": "<optional url>"
 }
 ```
@@ -176,6 +222,72 @@ Response:
 {
   "skills": "<skills snapshot object>",
   "updated_at": "<optional timestamptz>"
+}
+```
+
+### GET /v1/instances/:id/files
+
+Query:
+- `agent_id` defaults to `main`
+
+Response:
+```json
+{
+  "items": [
+    { "name": "AGENTS.md", "missing": false, "size": 1200, "updated_at_ms": 1770000000000 },
+    { "name": "SOUL.md", "missing": true }
+  ]
+}
+```
+
+Notes:
+- Only the Fleet-managed whitelist is exposed:
+  - `AGENTS.md`
+  - `SOUL.md`
+  - `TOOLS.md`
+  - `IDENTITY.md`
+  - `USER.md`
+  - `HEARTBEAT.md`
+  - `BOOTSTRAP.md`
+  - `MEMORY.md`
+
+### GET /v1/instances/:id/files/:name
+
+Query:
+- `agent_id` defaults to `main`
+
+Response:
+```json
+{
+  "name": "AGENTS.md",
+  "missing": false,
+  "size": 1200,
+  "updated_at_ms": 1770000000000,
+  "content": "# operator guidance\n"
+}
+```
+
+### PUT /v1/instances/:id/files/:name
+
+Request:
+```json
+{
+  "content": "# updated guidance\n",
+  "agent_id": "main"
+}
+```
+
+Response:
+```json
+{
+  "ok": true,
+  "file": {
+    "name": "AGENTS.md",
+    "missing": false,
+    "size": 18,
+    "updated_at_ms": 1770000000000,
+    "content": "# updated guidance\n"
+  }
 }
 ```
 
@@ -236,9 +348,21 @@ Group is a **named label selector** (not a static membership list).
 
 ### GET /v1/groups
 
+Query:
+- `q` matches group `name`
+- `page` defaults to `1`
+- `page_size` defaults to `10`
+
 Response:
 ```json
-{ "items": [ { "id": "<uuid>", "name": "g1", "selector": "<selector>", "description": null } ] }
+{
+  "items": [
+    { "id": "<uuid>", "name": "g1", "selector": "<selector>", "description": null }
+  ],
+  "total": 1,
+  "page": 1,
+  "page_size": 10
+}
 ```
 
 ### POST /v1/groups
@@ -283,6 +407,9 @@ Campaign is the v0.1 batch execution object:
 
 Query:
 - `include_deleted=true|1` to include soft-deleted campaigns in the list. Default is to hide them.
+- `q` matches campaign `name`
+- `page` defaults to `1`
+- `page_size` defaults to `10`
 
 Response:
 ```json
@@ -300,7 +427,10 @@ Response:
       "closed_at": null,
       "expires_at": null
     }
-  ]
+  ],
+  "total": 1,
+  "page": 1,
+  "page_size": 10
 }
 ```
 
@@ -379,7 +509,9 @@ Query:
 - `campaign_id` (optional)
 - `instance_id` (optional)
 - `event_type` (optional)
-- `limit` (optional, 1..500, default 200)
+- `limit` (optional legacy alias for first-page size)
+- `page` defaults to `1`
+- `page_size` defaults to `10`
 
 Response:
 ```json
@@ -404,7 +536,10 @@ Response:
       },
       "artifact_id": "<optional uuid>"
     }
-  ]
+  ],
+  "total": 1,
+  "page": 1,
+  "page_size": 10
 }
 ```
 
@@ -488,6 +623,7 @@ Request:
 {
   "target_type": "instance",
   "target_id": "<instance-id>",
+  "task_name": "refresh skills inventory",
   "action": "skills.update",
   "payload": {},
   "expires_at": "2026-12-31T00:00:00.000Z"
@@ -511,6 +647,9 @@ Notes:
 ### GET /v1/tasks
 
 Query (all optional):
+- `q` matches `task_name`, `action`, `instance display_name`, and `instance name`
+- `page` defaults to `1`
+- `page_size` defaults to `10`
 - `status`
 - `action`
 - `target_type`
@@ -518,7 +657,24 @@ Query (all optional):
 
 Response:
 ```json
-{ "items": [ { "id": "<uuid>", "target_type": "instance", "target_id": "<id>", "action": "skills.update", "status": "pending", "attempts": 1 } ] }
+{
+  "items": [
+    {
+      "id": "<uuid>",
+      "target_type": "instance",
+      "target_id": "<id>",
+      "task_name": "refresh skills inventory",
+      "action": "skills.update",
+      "status": "pending",
+      "attempts": 1,
+      "instance_name": "i-abc123",
+      "instance_display_name": "beijing-master"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "page_size": 10
+}
 ```
 
 ### GET /v1/tasks/:id

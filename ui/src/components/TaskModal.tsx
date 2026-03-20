@@ -37,6 +37,7 @@ export default function TaskModal({
   const [action, setAction] = useState<ActionType>(
     (initialAction as ActionType) ?? "agent.run",
   );
+  const [taskName, setTaskName] = useState("");
   const [targetId, setTargetId] = useState(defaultTargetId ?? "");
   const [message, setMessage] = useState("");
   const [agentId, setAgentId] = useState("main");
@@ -73,6 +74,7 @@ export default function TaskModal({
     prevOpen.current = true;
     setError(null);
     setAction((initialAction as ActionType) ?? "agent.run");
+    setTaskName("");
     setTargetId(defaultTargetId ?? instances[0]?.id ?? "");
     setMessage("");
     setMemoryContent("");
@@ -97,7 +99,7 @@ export default function TaskModal({
 
   const targetOptions = instances.map((instance) => (
     <option key={instance.id} value={instance.id}>
-      {instance.name}
+      {instance.display_name || instance.name}
     </option>
   ));
 
@@ -165,6 +167,7 @@ export default function TaskModal({
       const res = await api.createTask({
         target_type: "instance",
         target_id: targetId,
+        task_name: taskName || undefined,
         action,
         payload,
       });
@@ -187,6 +190,14 @@ export default function TaskModal({
           </button>
         </header>
         <form className="modal-body" onSubmit={handleSubmit}>
+          <label>
+            任务名称
+            <input
+              value={taskName}
+              onChange={(event) => setTaskName(event.target.value)}
+              placeholder="可选，便于检索和审计"
+            />
+          </label>
           <label>
             目标实例
             <select value={targetId} onChange={(event) => setTargetId(event.target.value)}>
@@ -381,7 +392,7 @@ export default function TaskModal({
 
           <div className="modal-actions">
             <button type="submit" disabled={submitting}>
-              {submitting ? "提交中..." : "提交任务"}
+              {submitting ? "创建中..." : "创建任务"}
             </button>
           </div>
         </form>

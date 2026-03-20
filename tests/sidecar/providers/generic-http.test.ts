@@ -12,3 +12,14 @@ test("generic provider calls /skills endpoint", async () => {
   await provider.skillsUpdate({ skillKey: "x", enabled: true });
   expect(called).toBe(true);
 });
+
+test("generic provider rejects unsupported managed file operations", async () => {
+  const provider = createGenericHttpProvider({
+    baseUrl: "http://agent",
+    fetch: (async () => ({ ok: true, json: async () => ({ ok: true }) })) as any,
+  });
+
+  await expect(provider.agentFilesList({ agentId: "main" })).rejects.toThrow(
+    "generic provider does not support managed file operations",
+  );
+});

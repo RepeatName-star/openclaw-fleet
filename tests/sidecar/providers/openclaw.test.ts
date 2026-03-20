@@ -18,6 +18,44 @@ test("openclaw provider maps memory replace", async () => {
   });
 });
 
+test("openclaw provider maps agent file list/get/set", async () => {
+  const request = vi.fn(async (method: string) => {
+    if (method === "agents.files.list") {
+      return { files: [{ name: "AGENTS.md", missing: false }] };
+    }
+    if (method === "agents.files.get") {
+      return { file: { name: "AGENTS.md", content: "# agent\n", missing: false } };
+    }
+    return { ok: true, file: { name: "AGENTS.md", content: "# updated\n", missing: false } };
+  });
+  const gateway = { request } as any;
+  const provider = createOpenClawProvider({ gateway });
+
+  await expect(provider.agentFilesList({ agentId: "main" })).resolves.toEqual({
+    files: [{ name: "AGENTS.md", missing: false }],
+  });
+  await expect(provider.agentFileGet({ agentId: "main", name: "AGENTS.md" })).resolves.toEqual({
+    file: { name: "AGENTS.md", content: "# agent\n", missing: false },
+  });
+  await expect(
+    provider.agentFileSet({ agentId: "main", name: "AGENTS.md", content: "# updated\n" }),
+  ).resolves.toEqual({
+    ok: true,
+    file: { name: "AGENTS.md", content: "# updated\n", missing: false },
+  });
+
+  expect(request).toHaveBeenNthCalledWith(1, "agents.files.list", { agentId: "main" });
+  expect(request).toHaveBeenNthCalledWith(2, "agents.files.get", {
+    agentId: "main",
+    name: "AGENTS.md",
+  });
+  expect(request).toHaveBeenNthCalledWith(3, "agents.files.set", {
+    agentId: "main",
+    name: "AGENTS.md",
+    content: "# updated\n",
+  });
+});
+
 test("openclaw provider supports config.get", async () => {
   const gateway = { request: async () => ({ baseHash: "h1" }) } as any;
   const provider = createOpenClawProvider({ gateway });

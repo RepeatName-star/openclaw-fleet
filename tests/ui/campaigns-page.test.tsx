@@ -67,19 +67,54 @@ test("campaigns page shows action-specific payload guidance", async () => {
   render(<CampaignsPage />);
 
   const actionSelect = await screen.findByLabelText("Action");
+  const openPayloadEditor = () => fireEvent.click(screen.getByRole("button", { name: "编辑 Payload" }));
+  const closePayloadEditor = () => fireEvent.click(screen.getByRole("button", { name: "关闭" }));
 
   fireEvent.change(actionSelect, { target: { value: "session.reset" } });
-  expect(await screen.findByText(/session\.reset payload/i)).toBeTruthy();
-  expect(screen.getByText(/"key"/)).toBeTruthy();
+  openPayloadEditor();
+  expect(await screen.findByText(/要重置的 session key/i)).toBeTruthy();
+  expect(screen.getByDisplayValue(/"key"/)).toBeTruthy();
+  closePayloadEditor();
 
   fireEvent.change(actionSelect, { target: { value: "agent.run" } });
-  expect(await screen.findByText(/agent\.run payload/i)).toBeTruthy();
-  expect(screen.getByText(/"message"/)).toBeTruthy();
+  openPayloadEditor();
+  expect(await screen.findByText(/发送给 agent 的文本/i)).toBeTruthy();
+  expect(screen.getByDisplayValue(/"message"/)).toBeTruthy();
+  closePayloadEditor();
 
   fireEvent.change(actionSelect, { target: { value: "fleet.config_patch" } });
-  expect(await screen.findByText(/fleet\.config_patch payload/i)).toBeTruthy();
-  expect(screen.getByText(/自动通过 config\.get 获取每台实例当前 hash/i)).toBeTruthy();
-  expect(screen.getByText(/"raw"/)).toBeTruthy();
+  openPayloadEditor();
+  expect(await screen.findByText(/自动通过 config\.get 获取每台实例当前 hash/i)).toBeTruthy();
+  expect(screen.getByText(/要写入的 JSON\/JSON5 配置片段字符串/i)).toBeTruthy();
+  expect(screen.getByDisplayValue(/"raw"/)).toBeTruthy();
+});
+
+test("campaign payload modal saves json back into the create form", async () => {
+  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url === "/v1/campaigns") {
+      return jsonResponse({ items: [] });
+    }
+    if (url === "/v1/groups") {
+      return jsonResponse({ items: [] });
+    }
+    throw new Error(`unexpected url: ${url}`);
+  });
+  vi.stubGlobal("fetch", fetchMock);
+
+  render(<CampaignsPage />);
+
+  fireEvent.change(await screen.findByLabelText("Action"), {
+    target: { value: "agent.run" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "编辑 Payload" }));
+
+  fireEvent.change(screen.getByLabelText("Payload JSON"), {
+    target: { value: '{\n  "message": "hello"\n}' },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "保存 Payload" }));
+
+  expect(await screen.findByText(/"message": "hello"/)).toBeTruthy();
 });
 
 test("campaigns page starts with empty selector instead of invalid prefix fragment", async () => {
@@ -254,4 +289,32 @@ test("campaigns page only shows delete for closed campaigns and uses post alias"
   await waitFor(() =>
     expect(requests).toContainEqual({ url: "/v1/campaigns/c-closed/delete", method: "POST" }),
   );
+});
+
+test("campaigns page uses chinese operator wording and avoids duplicated payload examples", async () => {
+  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url === "/v1/campaigns") {
+      return jsonResponse({ items: [] });
+    }
+    if (url === "/v1/groups") {
+      return jsonResponse({ items: [] });
+    }
+    throw new Error(`unexpected url: ${url}`);
+  });
+  vi.stubGlobal("fetch", fetchMock);
+
+  render(<CampaignsPage />);
+
+  expect(await screen.findByText("批量任务")).toBeTruthy();
+  expect(screen.getByText("创建批量任务")).toBeTruthy();
+
+  fireEvent.change(screen.getByLabelText("Action"), {
+    target: { value: "agent.run" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "编辑 Payload" }));
+
+  expect(screen.queryAllByText(/"message"/)).toHaveLength(1);
+  expect(screen.getByText(/发送给 agent 的文本/i)).toBeTruthy();
+  expect(screen.getByText(/可选，会话 key/i)).toBeTruthy();
 });

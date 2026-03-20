@@ -4,7 +4,11 @@ import type {
   EventItem,
   GroupItem,
   GroupMatchItem,
+  InstanceFileItem,
+  InstanceFileSaveResult,
   InstanceLabelItem,
+  OverviewStats,
+  PaginatedItems,
   InstanceSummary,
   SkillBundleItem,
   TaskAttempt,
@@ -15,14 +19,39 @@ type Fetcher = (input: RequestInfo, init?: RequestInit) => Promise<Response>;
 
 export type ApiClient = {
   listInstances: () => Promise<InstanceSummary[]>;
+  listInstancesPage: (filters?: {
+    q?: string;
+    page?: number;
+    page_size?: number;
+  }) => Promise<PaginatedItems<InstanceSummary>>;
   getInstance: (id: string) => Promise<InstanceSummary>;
-  updateInstance: (id: string, data: { name?: string; control_ui_url?: string }) => Promise<InstanceSummary>;
+  updateInstance: (
+    id: string,
+    data: { name?: string; display_name?: string; control_ui_url?: string },
+  ) => Promise<InstanceSummary>;
+  listInstanceFiles: (instanceId: string) => Promise<InstanceFileItem[]>;
+  getInstanceFile: (instanceId: string, name: string) => Promise<InstanceFileItem>;
+  updateInstanceFile: (
+    instanceId: string,
+    name: string,
+    data: { content: string },
+  ) => Promise<InstanceFileSaveResult>;
+  getOverview: () => Promise<OverviewStats>;
   listTasks: (filters?: Record<string, string>) => Promise<TaskItem[]>;
+  listTasksPage: (filters?: {
+    q?: string;
+    action?: string;
+    status?: string;
+    task_origin?: string;
+    page?: number;
+    page_size?: number;
+  }) => Promise<PaginatedItems<TaskItem>>;
   getTask: (id: string) => Promise<any>;
   getTaskAttempts: (id: string) => Promise<TaskAttempt[]>;
   createTask: (data: {
     target_type: string;
     target_id: string;
+    task_name?: string;
     action: string;
     payload?: Record<string, unknown>;
   }) => Promise<{ id: string }>;
@@ -65,11 +94,20 @@ export type ApiClient = {
   deleteCampaign: (id: string) => Promise<void>;
 
   listEvents: (filters?: {
+    task_id?: string;
     campaign_id?: string;
     instance_id?: string;
     event_type?: string;
     limit?: number;
   }) => Promise<EventItem[]>;
+  listEventsPage: (filters?: {
+    task_id?: string;
+    campaign_id?: string;
+    instance_id?: string;
+    event_type?: string;
+    page?: number;
+    page_size?: number;
+  }) => Promise<PaginatedItems<EventItem>>;
   exportEvents: (filters: {
     campaign_id?: string;
     instance_id?: string;
@@ -123,26 +161,129 @@ export function createApiClient(baseUrl = "", fetcher: Fetcher = fetch): ApiClie
     return await res.arrayBuffer();
   }
 
+  async function listTasksPageRequest(filters: {
+    q?: string;
+    action?: string;
+    status?: string;
+    task_origin?: string;
+    page?: number;
+    page_size?: number;
+  } = {}) {
+    const params = new URLSearchParams(
+      Object.entries(filters)
+        .filter(([, value]) => value !== undefined && value !== null && String(value).length > 0)
+        .map(([key, value]) => [key, String(value)]),
+    ).toString();
+    const suffix = params ? `?${params}` : "";
+    const data = await request<PaginatedItems<TaskItem>>(`/v1/tasks${suffix}`);
+    return {
+      items: data.items ?? [],
+      total: data.total ?? 0,
+      page: data.page ?? 1,
+      page_size: data.page_size ?? 10,
+    };
+  }
+
+  async function listEventsPageRequest(filters: {
+    task_id?: string;
+    campaign_id?: string;
+    instance_id?: string;
+    event_type?: string;
+    page?: number;
+    page_size?: number;
+    limit?: number;
+  } = {}) {
+    const params = new URLSearchParams(
+      Object.entries(filters)
+        .filter(([, value]) => value !== undefined && value !== null && String(value).length > 0)
+        .map(([k, v]) => [k, String(v)]),
+    ).toString();
+    const suffix = params ? `?${params}` : "";
+    const data = await request<PaginatedItems<EventItem>>(`/v1/events${suffix}`);
+    return {
+      items: data.items ?? [],
+      total: data.total ?? 0,
+      page: data.page ?? 1,
+      page_size: data.page_size ?? 10,
+    };
+  }
+
   return {
     async listInstances() {
-      const data = await request<{ items: InstanceSummary[] }>("/v1/instances");
-      return data.items ?? [];
+      const firstPage = await request<PaginatedItems<InstanceSummary>>("/v1/instances");
+      const items = [...(firstPage.items ?? [])];
+      const total = typeof firstPage.total === "number" ? firstPage.total : items.length;
+      const pageSize = typeof firstPage.page_size === "number" ? firstPage.page_size : 0;
+      const startPage = typeof firstPage.page === "number" ? firstPage.page : 1;
+
+      if (!pageSize || items.length >= total) {
+        return items;
+      }
+
+      for (let page = startPage + 1; items.length < total; page += 1) {
+        const nextPage = await request<PaginatedItems<InstanceSummary>>(
+          `/v1/instances?page=${page}&page_size=${pageSize}`,
+        );
+        const nextItems = nextPage.items ?? [];
+        if (nextItems.length === 0) {
+          break;
+        }
+        items.push(...nextItems);
+      }
+
+      return items;
+    },
+    async listInstancesPage(filters = {}) {
+      const params = new URLSearchParams(
+        Object.entries(filters)
+          .filter(([, value]) => value !== undefined && value !== null && String(value).length > 0)
+          .map(([key, value]) => [key, String(value)]),
+      ).toString();
+      const suffix = params ? `?${params}` : "";
+      const data = await request<PaginatedItems<InstanceSummary>>(`/v1/instances${suffix}`);
+      return {
+        items: data.items ?? [],
+        total: data.total ?? 0,
+        page: data.page ?? 1,
+        page_size: data.page_size ?? 10,
+      };
     },
     async getInstance(id: string) {
       return request<InstanceSummary>(`/v1/instances/${id}`);
     },
-    async updateInstance(id: string, data: { name?: string; control_ui_url?: string }) {
+    async updateInstance(
+      id: string,
+      data: { name?: string; display_name?: string; control_ui_url?: string },
+    ) {
       return request<InstanceSummary>(`/v1/instances/${id}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(data),
       });
     },
-    async listTasks(filters = {}) {
-      const params = new URLSearchParams(filters).toString();
-      const suffix = params ? `?${params}` : "";
-      const data = await request<{ items: TaskItem[] }>(`/v1/tasks${suffix}`);
+    async listInstanceFiles(instanceId: string) {
+      const data = await request<{ items: InstanceFileItem[] }>(`/v1/instances/${instanceId}/files`);
       return data.items ?? [];
+    },
+    async getInstanceFile(instanceId: string, name: string) {
+      return request<InstanceFileItem>(`/v1/instances/${instanceId}/files/${encodeURIComponent(name)}`);
+    },
+    async updateInstanceFile(instanceId: string, name: string, data: { content: string }) {
+      return request<InstanceFileSaveResult>(`/v1/instances/${instanceId}/files/${encodeURIComponent(name)}`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(data),
+      });
+    },
+    async getOverview() {
+      return request<OverviewStats>("/v1/overview");
+    },
+    async listTasks(filters = {}) {
+      const data = await listTasksPageRequest(filters);
+      return data.items ?? [];
+    },
+    async listTasksPage(filters = {}) {
+      return listTasksPageRequest(filters);
     },
     async getTask(id: string) {
       return request<any>(`/v1/tasks/${id}`);
@@ -154,6 +295,7 @@ export function createApiClient(baseUrl = "", fetcher: Fetcher = fetch): ApiClie
     async createTask(data: {
       target_type: string;
       target_id: string;
+      task_name?: string;
       action: string;
       payload?: Record<string, unknown>;
     }) {
@@ -270,14 +412,11 @@ export function createApiClient(baseUrl = "", fetcher: Fetcher = fetch): ApiClie
     },
 
     async listEvents(filters = {}) {
-      const params = new URLSearchParams(
-        Object.entries(filters)
-          .filter(([, value]) => value !== undefined && value !== null && String(value).length > 0)
-          .map(([k, v]) => [k, String(v)]),
-      ).toString();
-      const suffix = params ? `?${params}` : "";
-      const data = await request<{ items: EventItem[] }>(`/v1/events${suffix}`);
+      const data = await listEventsPageRequest(filters);
       return data.items ?? [];
+    },
+    async listEventsPage(filters = {}) {
+      return listEventsPageRequest(filters);
     },
     async exportEvents(filters: {
       campaign_id?: string;

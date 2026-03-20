@@ -57,3 +57,50 @@ test("UI API client uses POST alias for label, group, and bundle deletion", asyn
     expect.objectContaining({ method: "POST" }),
   );
 });
+
+test("UI API client follows paginated instance responses to load every instance", async () => {
+  const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url === "/v1/instances") {
+      return new Response(
+        JSON.stringify({
+          items: Array.from({ length: 10 }, (_, index) => ({
+            id: `i-${index + 1}`,
+            name: `node-${index + 1}`,
+            updated_at: new Date().toISOString(),
+            online: true,
+          })),
+          total: 11,
+          page: 1,
+          page_size: 10,
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ) as any;
+    }
+    if (url === "/v1/instances?page=2&page_size=10") {
+      return new Response(
+        JSON.stringify({
+          items: [
+            {
+              id: "i-11",
+              name: "node-11",
+              updated_at: new Date().toISOString(),
+              online: true,
+            },
+          ],
+          total: 11,
+          page: 2,
+          page_size: 10,
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ) as any;
+    }
+    throw new Error(`unexpected request ${url}`);
+  });
+
+  const api = createApiClient("", fetcher as any);
+  const items = await api.listInstances();
+
+  expect(items).toHaveLength(11);
+  expect(items.at(-1)?.id).toBe("i-11");
+});

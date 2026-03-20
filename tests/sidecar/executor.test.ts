@@ -113,3 +113,36 @@ test("executor retries fleet.config_patch once on stale hash errors", async () =
   expect(res.processed).toBe(1);
   expect(calls).toEqual(["get:h1", "patch:h1", "get:h2", "patch:h2"]);
 });
+
+test("executor dispatches agent file operations", async () => {
+  const state = { executed: {} } as any;
+  const provider = {
+    agentFilesList: async () => ({ files: [{ name: "AGENTS.md", missing: false }] }),
+    agentFileGet: async () => ({
+      file: { name: "AGENTS.md", missing: false, content: "# agent\n" },
+    }),
+    agentFileSet: async () => ({
+      ok: true,
+      file: { name: "AGENTS.md", missing: false, content: "# updated\n" },
+    }),
+  } as any;
+
+  const exec = createExecutor({ provider, state });
+  const res = await exec.run([
+    { id: "t-list", action: "agents.files.list", payload: { agentId: "main" } },
+    { id: "t-get", action: "agents.files.get", payload: { agentId: "main", name: "AGENTS.md" } },
+    {
+      id: "t-set",
+      action: "agents.files.set",
+      payload: { agentId: "main", name: "AGENTS.md", content: "# updated\n" },
+    },
+  ]);
+
+  expect(res.failed).toBe(0);
+  expect(res.processed).toBe(3);
+  expect(res.results).toEqual({
+    "t-list": { files: [{ name: "AGENTS.md", missing: false }] },
+    "t-get": { file: { name: "AGENTS.md", missing: false, content: "# agent\n" } },
+    "t-set": { ok: true, file: { name: "AGENTS.md", missing: false, content: "# updated\n" } },
+  });
+});

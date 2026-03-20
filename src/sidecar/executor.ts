@@ -5,6 +5,9 @@ import type {
   ConfigPatchParams,
   FleetConfigPatchParams,
   GatewayProbeParams,
+  AgentFileGetParams,
+  AgentFilesListParams,
+  AgentFileSetParams,
   MemoryReplaceParams,
   SessionResetParams,
   SidecarProvider,
@@ -92,6 +95,12 @@ export function createExecutor(options: ExecutorOptions) {
         return provider.skillsStatus(task.payload as SkillsStatusParams);
       case "memory.replace":
         return provider.memoryReplace(task.payload as MemoryReplaceParams);
+      case "agents.files.list":
+        return provider.agentFilesList(task.payload as AgentFilesListParams);
+      case "agents.files.get":
+        return provider.agentFileGet(task.payload as AgentFileGetParams);
+      case "agents.files.set":
+        return provider.agentFileSet(task.payload as AgentFileSetParams);
       case "session.reset":
         return provider.sessionReset(task.payload as SessionResetParams);
       case "agent.run":

@@ -130,6 +130,53 @@ selector 约束：
 - 不做 `os/arch` 兼容性预检
 - Sidecar 只从控制面下载
 
+### 2.8 中文运营控制台（UI v0.2）
+
+当前 UI 已按运营视角重组为 7 个主入口：
+
+- `全局概览`
+  - 展示 `/v1/overview` 汇总指标：实例总数、在线实例、任务总数、开放 Campaign、Skill Bundles 等。
+
+- `实例`
+  - 以备注名（`display_name`）作为主展示列。
+  - 同时展示 hostname、IP、在线状态、控制台入口。
+  - 支持按“备注名 / hostname / IP”检索。
+
+- `任务与审计`
+  - 把任务列表与 Events 放到同一页签下。
+  - 任务列表以 `task_name` 为主展示列，同时显示 action、实例备注名、状态、attempts、更新时间。
+  - Events 支持按 Campaign / 实例 / 事件类型筛选，并查看 artifact 详情。
+
+- `技能管理`
+  - 同时查看实例当前 skills 快照和控制面 Skill Bundles。
+  - “安装 Skill”弹窗已内置 upload / install 流程，不再需要单独 Bundle 页面。
+
+- `分组与标签`
+  - Group、matches 预览、实例 labels 放在同一页面。
+
+- `批量任务`
+  - 创建 Campaign 时，`payload` 通过 action-aware 弹窗编辑。
+  - 会自动展示该 action 的示例 JSON 和填写说明。
+  - `gate` / `rollout` 仍保持原始 JSON 字段。
+
+- `文件与记忆`
+  - 直接编辑 Fleet 托管的 8 个文件：
+    - `AGENTS.md`
+    - `SOUL.md`
+    - `TOOLS.md`
+    - `IDENTITY.md`
+    - `USER.md`
+    - `HEARTBEAT.md`
+    - `BOOTSTRAP.md`
+    - `MEMORY.md`
+  - 当前是实例级文件编辑，不再是旧的 `Memory/Persona` 任务下发页。
+
+统一交互约定：
+
+- 列表页统一支持 `page` / `page_size`
+- UI 当前页大小选项统一为 `10 / 20 / 50`
+- 菜单与主流程文案默认使用中文
+
 安装行为：
 - 落地目录：`~/.openclaw-fleet/skills/<bundleName>`
 - 如果 bundle 内只有一层顶级目录，安装器会自动拍平
@@ -414,12 +461,13 @@ payload：
 
 ### 5.1 UI 当前适合做什么
 
-- 看实例
-- 管 labels
-- 管 groups
+- 看全局概览指标
+- 看实例并维护备注名
+- 管 labels / groups / matches
 - 管 campaigns（创建 / 编辑 / 关闭 / 删除已关闭项）
-- 查看 events / artifacts
+- 查看 tasks / events / artifacts
 - 上传 / 删除 / 分发 skill bundles
+- 直接编辑 Fleet 托管文件
 
 ### 5.2 CLI 当前适合做什么
 
@@ -455,6 +503,7 @@ payload：
 3. 建一个 Group，确认 matches 正确
 4. 用 Group 创建一个 `skills.status` Campaign
 5. 在 Events 里确认 `target.added` / `exec.queued` / `exec.finished`
-6. 上传一个 Skill Bundle
-7. 先 direct task 安装到单机，再 Campaign 分发到标签集合
-8. 用 `artifacts` 看原始错误和结果
+6. 在“文件与记忆”里编辑一个托管文件，确认保存成功
+7. 上传一个 Skill Bundle
+8. 先 direct task 安装到单机，再 Campaign 分发到标签集合
+9. 用 `artifacts` 看原始错误和结果

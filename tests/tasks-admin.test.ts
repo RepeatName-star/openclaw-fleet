@@ -20,6 +20,32 @@ test("POST /v1/tasks rejects legacy group targets", async () => {
   expect(res.statusCode).toBe(400);
 });
 
+test("POST /v1/tasks accepts optional task_name", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+  const pool = createTestPool(db);
+  const instance = await pool.query("insert into instances (name) values ('i-1') returning id");
+  const instanceId = String(instance.rows[0].id);
+
+  const app = await buildServer({ pool });
+  const res = await app.inject({
+    method: "POST",
+    url: "/v1/tasks",
+    payload: {
+      target_type: "instance",
+      target_id: instanceId,
+      task_name: "refresh skills inventory",
+      action: "skills.status",
+      payload: {},
+    },
+  });
+
+  expect(res.statusCode).toBe(200);
+  const stored = await pool.query("select task_name, task_origin from tasks where id = $1", [res.json().id]);
+  expect(stored.rows[0].task_name).toBe("refresh skills inventory");
+  expect(stored.rows[0].task_origin).toBe("manual");
+});
+
 test("POST /v1/tasks emits audit event with redacted message and raw payload artifact", async () => {
   const db = initTestDb();
   await runMigrations(db);

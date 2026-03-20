@@ -7,6 +7,7 @@ import { insertArtifact, insertEvent } from "../events/store.js";
 const TaskSchema = z.object({
   target_type: z.enum(["instance", "group"]),
   target_id: z.string().min(1),
+  task_name: z.string().min(1).optional(),
   action: z.string().min(1),
   payload: z.record(z.unknown()).optional(),
   expires_at: z.string().datetime().optional(),
@@ -39,10 +40,11 @@ export async function registerTasksAdminRoutes(app: FastifyInstance, opts: Tasks
 
     const payload = parsed.data.payload ?? {};
     const res = await opts.pool.query(
-      "insert into tasks (target_type, target_id, action, payload, expires_at) values ($1, $2, $3, $4, $5) returning id",
+      "insert into tasks (target_type, target_id, task_name, action, payload, expires_at, task_origin) values ($1, $2, $3, $4, $5, $6, 'manual') returning id",
       [
         parsed.data.target_type,
         parsed.data.target_id,
+        parsed.data.task_name ?? null,
         parsed.data.action,
         payload,
         parsed.data.expires_at ?? null,
@@ -55,12 +57,14 @@ export async function registerTasksAdminRoutes(app: FastifyInstance, opts: Tasks
         task_id: taskId,
         target_type: parsed.data.target_type,
         target_id: parsed.data.target_id,
+        task_name: parsed.data.task_name ?? null,
         action: parsed.data.action,
         payload,
       },
     });
     const redacted = redactValue(
       {
+        task_name: parsed.data.task_name ?? null,
         action: parsed.data.action,
         payload,
       },
@@ -68,6 +72,7 @@ export async function registerTasksAdminRoutes(app: FastifyInstance, opts: Tasks
     ) as Record<string, unknown>;
     await insertEvent(opts.pool, {
       event_type: "exec.queued",
+      task_id: taskId,
       instance_id: parsed.data.target_type === "instance" ? parsed.data.target_id : null,
       artifact_id: artifact.id,
       payload: {

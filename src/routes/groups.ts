@@ -15,20 +15,51 @@ const PatchGroupSchema = z.object({
   description: z.string().optional(),
 });
 
+const ListGroupsSchema = z.object({
+  q: z.string().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  page_size: z.coerce.number().int().min(1).max(100).default(10),
+});
+
 type GroupsRoutesOptions = {
   pool?: Pool;
 };
 
 export async function registerGroupsRoutes(app: FastifyInstance, opts: GroupsRoutesOptions) {
-  app.get("/v1/groups", async (_request, reply) => {
+  app.get("/v1/groups", async (request, reply) => {
     if (!opts.pool) {
       reply.code(500).send({ error: "server not configured" });
       return;
     }
-    const res = await opts.pool.query(
-      "select id, name, selector, description, created_at, updated_at from groups order by created_at asc",
+    const parsed = ListGroupsSchema.safeParse(request.query ?? {});
+    if (!parsed.success) {
+      reply.code(400).send({ error: "invalid query" });
+      return;
+    }
+    const { q, page, page_size } = parsed.data;
+    const filters: string[] = [];
+    const values: Array<string | number> = [];
+    if (q) {
+      values.push(`%${q.toLowerCase()}%`);
+      filters.push(`lower(name) like $${values.length}`);
+    }
+    const whereClause = filters.length ? `where ${filters.join(" and ")}` : "";
+    const countRes = await opts.pool.query(
+      `select count(*)::int as total from groups ${whereClause}`,
+      values,
     );
-    reply.send({ items: res.rows });
+    values.push(page_size);
+    values.push((page - 1) * page_size);
+    const res = await opts.pool.query(
+      `select id, name, selector, description, created_at, updated_at
+       from groups
+       ${whereClause}
+       order by created_at asc, id asc
+       limit $${values.length - 1}
+       offset $${values.length}`,
+      values,
+    );
+    reply.send({ items: res.rows, total: countRes.rows[0]?.total ?? 0, page, page_size });
   });
 
   app.post("/v1/groups", async (request, reply) => {
@@ -150,7 +181,9 @@ export async function registerGroupsRoutes(app: FastifyInstance, opts: GroupsRou
       return;
     }
 
-    const instances = await opts.pool.query("select id, name from instances order by created_at asc");
+    const instances = await opts.pool.query(
+      "select id, name, display_name from instances order by created_at asc",
+    );
     const labelsRes = await opts.pool.query(
       "select instance_id, key, value from instance_labels order by key asc",
     );
@@ -162,11 +195,15 @@ export async function registerGroupsRoutes(app: FastifyInstance, opts: GroupsRou
       byInstance.set(iid, map);
     }
 
-    const items = [] as Array<{ id: string; name: string }>;
+    const items = [] as Array<{ id: string; name: string; display_name: string | null }>;
     for (const inst of instances.rows) {
       const labels = byInstance.get(inst.id as string) ?? {};
       if (matchLabelSelector(parsed.selector, labels)) {
-        items.push({ id: inst.id as string, name: inst.name as string });
+        items.push({
+          id: inst.id as string,
+          name: inst.name as string,
+          display_name: inst.display_name ? String(inst.display_name) : null,
+        });
       }
     }
     reply.send({ items });

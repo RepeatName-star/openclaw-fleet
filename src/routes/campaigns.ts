@@ -25,6 +25,9 @@ const PatchSchema = z.object({
 
 const ListQuerySchema = z.object({
   include_deleted: z.union([z.string(), z.boolean()]).optional(),
+  q: z.string().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  page_size: z.coerce.number().int().min(1).max(100).default(10),
 });
 
 function isTruthyFlag(value: string | boolean | undefined): boolean {
@@ -66,14 +69,38 @@ export async function registerCampaignRoutes(app: FastifyInstance, opts: { pool?
       return;
     }
     const parsedQuery = ListQuerySchema.safeParse(request.query ?? {});
-    const includeDeleted = parsedQuery.success ? isTruthyFlag(parsedQuery.data.include_deleted) : false;
+    if (!parsedQuery.success) {
+      reply.code(400).send({ error: "invalid query" });
+      return;
+    }
+    const includeDeleted = isTruthyFlag(parsedQuery.data.include_deleted);
+    const { q, page, page_size } = parsedQuery.data;
+    const conditions: string[] = [];
+    const values: Array<string | number> = [];
+    if (!includeDeleted) {
+      conditions.push("status <> 'deleted'");
+    }
+    if (q) {
+      values.push(`%${q.toLowerCase()}%`);
+      conditions.push(`lower(name) like $${values.length}`);
+    }
+    const whereClause = conditions.length ? `where ${conditions.join(" and ")}` : "";
+    const countRes = await opts.pool.query(
+      `select count(*)::int as total from campaigns ${whereClause}`,
+      values,
+    );
+    values.push(page_size);
+    values.push((page - 1) * page_size);
     const res = await opts.pool.query(
       `select id, name, selector, action, generation, status, created_at, updated_at, closed_at, expires_at
        from campaigns
-       ${includeDeleted ? "" : "where status <> 'deleted'"}
-       order by created_at desc`,
+       ${whereClause}
+       order by created_at desc, id desc
+       limit $${values.length - 1}
+       offset $${values.length}`,
+      values,
     );
-    reply.send({ items: res.rows });
+    reply.send({ items: res.rows, total: countRes.rows[0]?.total ?? 0, page, page_size });
   });
 
   app.post("/v1/campaigns", async (request, reply) => {

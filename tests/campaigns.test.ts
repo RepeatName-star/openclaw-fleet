@@ -63,6 +63,44 @@ test("GET /v1/campaigns lists campaigns", async () => {
   expect(res.json().items[0].name).toBe("c1");
 });
 
+test("GET /v1/campaigns supports q and pagination", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+  const pool = createTestPool(db);
+  await pool.query(
+    "insert into campaigns (name, selector, action, payload) values ($1,$2,$3,$4), ($5,$6,$7,$8), ($9,$10,$11,$12)",
+    [
+      "rollout workers a",
+      "biz.openclaw.io/team=a",
+      "skills.status",
+      {},
+      "rollout workers b",
+      "biz.openclaw.io/team=b",
+      "skills.status",
+      {},
+      "control plane audit",
+      "biz.openclaw.io/master=true",
+      "skills.status",
+      {},
+    ],
+  );
+  const app = await buildServer({ pool, redis });
+
+  const res = await app.inject({
+    method: "GET",
+    url: "/v1/campaigns?q=rollout&page=2&page_size=1",
+  });
+
+  expect(res.statusCode).toBe(200);
+  expect(res.json()).toMatchObject({
+    total: 2,
+    page: 2,
+    page_size: 1,
+  });
+  expect(res.json().items).toHaveLength(1);
+  expect(res.json().items[0].name).toBe("rollout workers a");
+});
+
 test("GET /v1/campaigns?include_deleted=true includes soft-deleted campaigns", async () => {
   const db = initTestDb();
   await runMigrations(db);

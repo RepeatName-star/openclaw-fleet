@@ -31,6 +31,7 @@ export async function registerEnrollRoutes(app: FastifyInstance, opts: EnrollOpt
     }
 
     const instanceName = parsed.data.instance_name.trim();
+    const lastSeenIp = request.ip ?? null;
     const existing = await opts.pool.query(
       "select id from instances where name = $1 limit 1",
       [instanceName],
@@ -38,10 +39,14 @@ export async function registerEnrollRoutes(app: FastifyInstance, opts: EnrollOpt
     let instanceId: string;
     if (existing.rowCount && existing.rows[0]?.id) {
       instanceId = existing.rows[0].id as string;
+      await opts.pool.query(
+        "update instances set last_seen_ip = $2, updated_at = now() where id = $1",
+        [instanceId, lastSeenIp],
+      );
     } else {
       const created = await opts.pool.query(
-        "insert into instances (name) values ($1) returning id",
-        [instanceName],
+        "insert into instances (name, last_seen_ip) values ($1, $2) returning id",
+        [instanceName, lastSeenIp],
       );
       instanceId = created.rows[0].id as string;
     }

@@ -1,20 +1,58 @@
+export type PaginatedItems<T> = {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
 export type InstanceSummary = {
   id: string;
   name: string;
+  display_name?: string | null;
+  last_seen_ip?: string | null;
   updated_at: string;
   online: boolean;
   control_ui_url?: string | null;
   skills_snapshot_at?: string | null;
 };
 
+export type InstanceFileItem = {
+  name: string;
+  missing: boolean;
+  size?: number;
+  updated_at_ms?: number;
+  content?: string;
+};
+
+export type InstanceFileSaveResult = {
+  ok: boolean;
+  file: InstanceFileItem;
+};
+
+export type OverviewStats = {
+  instances_total: number;
+  instances_online: number;
+  tasks_total: number;
+  tasks_pending: number;
+  tasks_leased: number;
+  tasks_done: number;
+  tasks_error: number;
+  campaigns_open: number;
+  skill_bundles_total: number;
+};
+
 export type TaskItem = {
   id: string;
   target_type: string;
   target_id: string;
+  task_name?: string | null;
   action: string;
   status: string;
   attempts: number;
   updated_at: string;
+  task_origin?: string | null;
+  instance_name?: string | null;
+  instance_display_name?: string | null;
 };
 
 export type TaskAttempt = {
@@ -44,6 +82,7 @@ export type GroupItem = {
 export type GroupMatchItem = {
   id: string;
   name: string;
+  display_name?: string | null;
 };
 
 export type CampaignItem = {
@@ -66,6 +105,7 @@ export type EventItem = {
   id: string;
   event_type: string;
   ts: string;
+  task_id?: string | null;
   campaign_id?: string | null;
   campaign_generation?: number | null;
   instance_id?: string | null;

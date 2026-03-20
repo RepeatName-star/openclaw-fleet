@@ -16,6 +16,7 @@ export async function insertEvent(
   params: {
     event_type: string;
     ts?: Date;
+    task_id?: string | null;
     campaign_id?: string | null;
     campaign_generation?: number | null;
     instance_id?: string | null;
@@ -42,10 +43,11 @@ export async function insertEvent(
   }
 
   await pool.query(
-    "insert into events (event_type, ts, campaign_id, campaign_generation, instance_id, instance_name, labels_snapshot, facts_snapshot, payload, artifact_id) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
+    "insert into events (event_type, ts, task_id, campaign_id, campaign_generation, instance_id, instance_name, labels_snapshot, facts_snapshot, payload, artifact_id) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
     [
       params.event_type,
       params.ts ?? new Date(),
+      params.task_id ?? null,
       params.campaign_id ?? null,
       params.campaign_generation ?? null,
       params.instance_id ?? null,
@@ -57,4 +59,3 @@ export async function insertEvent(
     ],
   );
 }
-

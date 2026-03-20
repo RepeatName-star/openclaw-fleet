@@ -1,4 +1,10 @@
 import type {
+  AgentFileGetParams,
+  AgentFileGetResult,
+  AgentFilesListParams,
+  AgentFilesListResult,
+  AgentFileSetParams,
+  AgentFileSetResult,
   AgentRunParams,
   ConfigGetParams,
   ConfigGetResult,
@@ -19,6 +25,10 @@ type GenericProviderOptions = {
   baseUrl: string;
   fetch?: FetchLike;
 };
+
+function unsupportedManagedFiles(): never {
+  throw new Error("generic provider does not support managed file operations");
+}
 
 export function createGenericHttpProvider(options: GenericProviderOptions): SidecarProvider {
   const baseUrl = options.baseUrl.replace(/\/$/, "");
@@ -74,6 +84,15 @@ export function createGenericHttpProvider(options: GenericProviderOptions): Side
     },
     async memoryReplace(params: MemoryReplaceParams) {
       await post("/memory", params);
+    },
+    async agentFilesList(_params: AgentFilesListParams): Promise<AgentFilesListResult> {
+      unsupportedManagedFiles();
+    },
+    async agentFileGet(_params: AgentFileGetParams): Promise<AgentFileGetResult> {
+      unsupportedManagedFiles();
+    },
+    async agentFileSet(_params: AgentFileSetParams): Promise<AgentFileSetResult> {
+      unsupportedManagedFiles();
     },
     async sessionReset(params: SessionResetParams) {
       await post("/sessions/reset", params);
