@@ -113,16 +113,19 @@ flowchart TB
   - `skills.update`
   - `skills.install`
   - `skills.status` (snapshot per instance)
+  - `fleet.gateway.probe`
+  - `fleet.config_patch`
+  - `fleet.skill_bundle.install`
   - `config.patch`
 - UI:
   - Chinese-first operator console navigation:
     - `全局概览`: fleet summary cards from `/v1/overview`
-    - `实例`: display name + hostname + IP, inline rename, per-instance task entry
-    - `任务与审计`: unified task list + audit/event view with search, filters, artifact detail
-    - `技能管理`: instance skill snapshot + integrated bundle upload/install workflow
-    - `分组与标签`: groups, matches preview, and business labels on one surface
-    - `批量任务`: Campaign management with action-aware payload editor
-    - `文件与记忆`: Fleet-managed file editor for `AGENTS.md` / `SOUL.md` / `TOOLS.md` / `IDENTITY.md` / `USER.md` / `HEARTBEAT.md` / `BOOTSTRAP.md` / `MEMORY.md`
+    - `实例`: display name + hostname + IP, modal editing for remark / control URL, per-instance task entry
+    - `任务与审计`: unified task list + audit/event view with search, manual/system task filtering, task detail, artifact drill-down
+    - `技能管理`: instance skill snapshot, skill counts, integrated bundle upload/install workflow
+    - `分组与标签`: groups, matches preview, business labels, display-name-first instance rendering
+    - `批量任务`: Campaign management with group selector and action-aware payload editor
+    - `文件与记忆`: Fleet-managed file editor for `AGENTS.md` / `SOUL.md` / `TOOLS.md` / `IDENTITY.md` / `USER.md` / `HEARTBEAT.md` / `BOOTSTRAP.md` / `MEMORY.md`, with cache + refresh
   - Shared pagination (`page` / `page_size`) across operator lists
   - Per-instance OpenClaw console link (`control_ui_url`)
 
@@ -147,6 +150,9 @@ cat migrations/001_init.sql | docker exec -i openclaw-fleet-postgres psql -U ope
 cat migrations/002_instance_task_metadata.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
 cat migrations/003_bulk_management_v0_1.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
 cat migrations/004_probe_states.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
+cat migrations/005_ui_v0_2_ops_foundation.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
+cat migrations/006_task_origin.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
+cat migrations/007_events_task_id.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
 
 # 5) Build + start control plane (serves UI if dist/ui exists)
 pnpm build
@@ -207,6 +213,9 @@ Run all SQL files in `migrations/` against your Postgres database:
 - `migrations/002_instance_task_metadata.sql`
 - `migrations/003_bulk_management_v0_1.sql`
 - `migrations/004_probe_states.sql`
+- `migrations/005_ui_v0_2_ops_foundation.sql`
+- `migrations/006_task_origin.sql`
+- `migrations/007_events_task_id.sql`
 
 ## API
 
@@ -214,7 +223,7 @@ See `docs/api.md` for endpoints and payloads.
 See `docs/usage-v0.1.md` for the current feature matrix, action payloads, expected effects, and operational caveats.
 See `docs/campaign-manual.md` for Campaign field semantics, Gate/Rollout boundaries, and common payload templates.
 
-UI-related read endpoints:
+UI-related endpoints:
 - `GET /v1/overview`
 - `GET /v1/instances`
 - `GET /v1/instances/:id`
@@ -223,10 +232,14 @@ UI-related read endpoints:
 - `GET /v1/instances/:id/files`
 - `GET /v1/instances/:id/files/:name`
 - `PUT /v1/instances/:id/files/:name`
+- `GET /v1/groups`
+- `GET /v1/groups/:id/matches`
+- `GET /v1/campaigns`
 - `GET /v1/tasks`
 - `GET /v1/tasks/:id`
 - `GET /v1/tasks/:id/attempts`
 - `GET /v1/events`
+- `GET /v1/events/export`
 
 ## CLI
 

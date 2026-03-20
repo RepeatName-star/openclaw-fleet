@@ -113,17 +113,20 @@ flowchart TB
   - `skills.update`
   - `skills.install`
   - `skills.status`（实例技能快照）
+  - `fleet.gateway.probe`
+  - `fleet.config_patch`
+  - `fleet.skill_bundle.install`
   - `config.patch`
 - UI：
-  - 实例列表与在线状态
-  - 任务列表与详情（attempt/error）
-  - 技能快照与启停
-  - Memory/Persona 编辑器
-  - 标签管理（实例业务标签）
-  - 分组管理（命名 selector）+ matches 预览
-  - Campaign 管理（创建/更新/关闭）
-  - 事件流（筛选/导出 JSONL/CSV）+ artifact 查看
-  - Skill Bundle（上传/列表/下载）+ 安装辅助（task/campaign）
+  - 中文运营控制台导航：
+    - `全局概览`：来自 `/v1/overview` 的实例 / 任务 / Campaign / Bundle 汇总卡片
+    - `实例`：备注名优先展示，附 hostname / IP，并支持弹窗修改备注与控制台 URL
+    - `任务与审计`：统一任务列表、手动/系统任务筛选、任务详情、事件 / artifact 查看
+    - `技能管理`：实例技能快照、技能数量统计、内置 bundle 上传 / 安装流程
+    - `分组与标签`：Group、matches 预览、业务标签编辑统一在一个页面中处理
+    - `批量任务`：Campaign 管理、Group 选择、按 action 自动给出 payload 示例与字段说明
+    - `文件与记忆`：集中编辑 `AGENTS.md` / `SOUL.md` / `TOOLS.md` / `IDENTITY.md` / `USER.md` / `HEARTBEAT.md` / `BOOTSTRAP.md` / `MEMORY.md`，支持缓存、刷新与保存
+  - 各运营列表统一支持分页（`page` / `page_size`）
   - 实例 OpenClaw 控制台链接（`control_ui_url`）
 
 ## 快速开始（单机）
@@ -146,6 +149,9 @@ cat migrations/001_init.sql | docker exec -i openclaw-fleet-postgres psql -U ope
 cat migrations/002_instance_task_metadata.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
 cat migrations/003_bulk_management_v0_1.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
 cat migrations/004_probe_states.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
+cat migrations/005_ui_v0_2_ops_foundation.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
+cat migrations/006_task_origin.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
+cat migrations/007_events_task_id.sql | docker exec -i openclaw-fleet-postgres psql -U openclaw -d openclaw_fleet
 
 # 5) 构建并启动控制面（dist/ui 存在时可直接提供 UI）
 pnpm build
@@ -174,6 +180,7 @@ pnpm sidecar:start
 说明：
 - `openclawGatewayToken` 可选，没有鉴权可省略。
 - `openclawGatewayUrl` 指向该实例所在主机的本地 Gateway。
+- 默认运营导航为：`全局概览 / 实例 / 任务与审计 / 技能管理 / 分组与标签 / 批量任务 / 文件与记忆`。
 
 UI 开发：
 
@@ -205,23 +212,38 @@ ENROLLMENT_SECRET=change-me
 - `migrations/002_instance_task_metadata.sql`
 - `migrations/003_bulk_management_v0_1.sql`
 - `migrations/004_probe_states.sql`
+- `migrations/005_ui_v0_2_ops_foundation.sql`
+- `migrations/006_task_origin.sql`
+- `migrations/007_events_task_id.sql`
 
 ## API
 
 详细接口见 `docs/api.md`。
+功能矩阵、动作 payload、预期效果与注意事项见 `docs/usage-v0.1.md`。
+Campaign 字段语义、Gate / Rollout 边界与常见模板见 `docs/campaign-manual.md`。
 
-UI 相关只读接口：
+UI 相关接口：
+- `GET /v1/overview`
 - `GET /v1/instances`
 - `GET /v1/instances/:id`
 - `PATCH /v1/instances/:id`
 - `GET /v1/instances/:id/skills`
+- `GET /v1/instances/:id/files`
+- `GET /v1/instances/:id/files/:name`
+- `PUT /v1/instances/:id/files/:name`
+- `GET /v1/groups`
+- `GET /v1/groups/:id/matches`
+- `GET /v1/campaigns`
 - `GET /v1/tasks`
 - `GET /v1/tasks/:id`
 - `GET /v1/tasks/:id/attempts`
+- `GET /v1/events`
+- `GET /v1/events/export`
 
 ## CLI
 
 v0.1 的 CLI 使用说明（labels/selectors/groups/campaigns/events/artifacts/skill bundles）见 `docs/cli.md`。
+UI / CLI / API 共用的动作说明见 `docs/usage-v0.1.md`。
 
 ## Sidecar
 
