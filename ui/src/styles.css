@@ -532,6 +532,20 @@ textarea {
   flex-direction: column;
 }
 
+.result-summary {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(15, 123, 108, 0.1);
+  color: var(--ink);
+  line-height: 1.6;
+}
+
+.timeline-preview {
+  margin: 0;
+  max-height: 120px;
+  overflow: auto;
+}
+
 .file-list {
   display: flex;
   flex-direction: column;

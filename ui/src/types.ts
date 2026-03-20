@@ -104,6 +104,7 @@ export type EventItem = {
   id: string;
   event_type: string;
   ts: string;
+  task_id?: string | null;
   campaign_id?: string | null;
   campaign_generation?: number | null;
   instance_id?: string | null;

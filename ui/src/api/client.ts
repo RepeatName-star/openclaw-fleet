@@ -94,12 +94,14 @@ export type ApiClient = {
   deleteCampaign: (id: string) => Promise<void>;
 
   listEvents: (filters?: {
+    task_id?: string;
     campaign_id?: string;
     instance_id?: string;
     event_type?: string;
     limit?: number;
   }) => Promise<EventItem[]>;
   listEventsPage: (filters?: {
+    task_id?: string;
     campaign_id?: string;
     instance_id?: string;
     event_type?: string;
@@ -183,6 +185,7 @@ export function createApiClient(baseUrl = "", fetcher: Fetcher = fetch): ApiClie
   }
 
   async function listEventsPageRequest(filters: {
+    task_id?: string;
     campaign_id?: string;
     instance_id?: string;
     event_type?: string;
