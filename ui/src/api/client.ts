@@ -4,9 +4,13 @@ import type {
   EventItem,
   GroupItem,
   GroupMatchItem,
+  InstanceMailMessageDetail,
+  InstanceMailMessagePage,
+  InstanceMailSendPayload,
   InstanceFileItem,
   InstanceFileSaveResult,
   InstanceLabelItem,
+  InstanceToolItem,
   OverviewStats,
   PaginatedItems,
   InstanceSummary,
@@ -29,6 +33,22 @@ export type ApiClient = {
     id: string,
     data: { name?: string; display_name?: string; control_ui_url?: string },
   ) => Promise<InstanceSummary>;
+  listInstanceTools: (instanceId: string) => Promise<InstanceToolItem[]>;
+  listInstanceMailMessages: (
+    instanceId: string,
+    toolId: string,
+    filters?: { query?: string; start?: number; limit?: number },
+  ) => Promise<InstanceMailMessagePage>;
+  getInstanceMailMessage: (
+    instanceId: string,
+    toolId: string,
+    messageId: string,
+  ) => Promise<InstanceMailMessageDetail>;
+  sendInstanceMail: (
+    instanceId: string,
+    toolId: string,
+    data: InstanceMailSendPayload,
+  ) => Promise<{ ID: string }>;
   listInstanceFiles: (instanceId: string) => Promise<InstanceFileItem[]>;
   getInstanceFile: (instanceId: string, name: string) => Promise<InstanceFileItem>;
   updateInstanceFile: (
@@ -257,6 +277,33 @@ export function createApiClient(baseUrl = "", fetcher: Fetcher = fetch): ApiClie
     ) {
       return request<InstanceSummary>(`/v1/instances/${id}`, {
         method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(data),
+      });
+    },
+    async listInstanceTools(instanceId: string) {
+      const data = await request<{ items: InstanceToolItem[] }>(`/v1/instances/${instanceId}/tools`);
+      return data.items ?? [];
+    },
+    async listInstanceMailMessages(instanceId: string, toolId: string, filters = {}) {
+      const params = new URLSearchParams(
+        Object.entries(filters)
+          .filter(([, value]) => value !== undefined && value !== null && String(value).length > 0)
+          .map(([key, value]) => [key, String(value)]),
+      ).toString();
+      const suffix = params ? `?${params}` : "";
+      return request<InstanceMailMessagePage>(
+        `/v1/instances/${instanceId}/tools/${toolId}/mail/messages${suffix}`,
+      );
+    },
+    async getInstanceMailMessage(instanceId: string, toolId: string, messageId: string) {
+      return request<InstanceMailMessageDetail>(
+        `/v1/instances/${instanceId}/tools/${toolId}/mail/messages/${encodeURIComponent(messageId)}`,
+      );
+    },
+    async sendInstanceMail(instanceId: string, toolId: string, data: InstanceMailSendPayload) {
+      return request<{ ID: string }>(`/v1/instances/${instanceId}/tools/${toolId}/mail/send`, {
+        method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(data),
       });

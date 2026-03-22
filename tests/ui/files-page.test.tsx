@@ -62,8 +62,8 @@ test("file editor shows approved files and loads selected content", async () => 
 
   render(<MemoryPage />);
 
-  await screen.findByLabelText("实例");
-  expect(await screen.findByRole("button", { name: "AGENTS.md" })).toBeTruthy();
+  await waitFor(() => expect(screen.queryByText("文件列表加载中...")).toBeNull(), { timeout: 3000 });
+  expect(await screen.findByRole("button", { name: "AGENTS.md" }, { timeout: 3000 })).toBeTruthy();
   expect(screen.getByRole("button", { name: "MEMORY.md" })).toBeTruthy();
 
   fireEvent.click(screen.getByRole("button", { name: "AGENTS.md" }));

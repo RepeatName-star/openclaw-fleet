@@ -83,3 +83,19 @@ test("ui v0.2 ops migrations add display metadata and task naming columns", asyn
   const eventNames = eventColumns.rows.map((row) => row.column_name);
   expect(eventNames).toContain("task_id");
 });
+
+test("instance tools migration adds instance_tools table", async () => {
+  const db = initTestDb();
+  await runMigrations(db);
+
+  expect(() => db.public.query("select 1 from instance_tools")).not.toThrow();
+
+  const columns = db.public.query(
+    "select column_name from information_schema.columns where table_name='instance_tools'",
+  );
+  const names = columns.rows.map((row) => row.column_name);
+  expect(names).toContain("instance_id");
+  expect(names).toContain("tool_type");
+  expect(names).toContain("config");
+  expect(names).toContain("enabled");
+});

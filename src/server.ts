@@ -14,6 +14,7 @@ import { registerHealthRoutes } from "./routes/health.js";
 import { registerHeartbeatRoutes } from "./routes/heartbeat.js";
 import { registerInstanceFilesRoutes } from "./routes/instance-files.js";
 import { registerInstanceRoutes } from "./routes/instances.js";
+import { registerInstanceToolsRoutes } from "./routes/instance-tools.js";
 import { registerLabelsRoutes } from "./routes/labels.js";
 import { registerOverviewRoutes } from "./routes/overview.js";
 import { registerTasksAckRoutes } from "./routes/tasks-ack.js";
@@ -26,6 +27,7 @@ type ServerOptions = {
   config?: AppConfig;
   pool?: Pool;
   redis?: RedisLike;
+  mailFetch?: typeof fetch;
 };
 
 export async function buildServer(options: ServerOptions = {}) {
@@ -36,6 +38,7 @@ export async function buildServer(options: ServerOptions = {}) {
   await registerOverviewRoutes(app, options);
   await registerInstanceFilesRoutes(app, options);
   await registerInstanceRoutes(app, options);
+  await registerInstanceToolsRoutes(app, options);
   await registerLabelsRoutes(app, options);
   await registerGroupsRoutes(app, options);
   await registerCampaignRoutes(app, options);

@@ -105,3 +105,162 @@ test("instances page uses modal editing for remark and control url instead of in
   fireEvent.click(screen.getByRole("button", { name: "配置控制台" }));
   expect(screen.getByLabelText("控制台 URL")).toBeTruthy();
 });
+
+test("instances page opens mail tool modal and supports send, list, search, and detail", async () => {
+  let sentBody: Record<string, unknown> | null = null;
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+
+    if (url === "/v1/instances?page=1&page_size=10" && method === "GET") {
+      return jsonResponse({
+        items: [
+          {
+            id: "i-1",
+            name: "host-a",
+            display_name: "北京主控",
+            last_seen_ip: "10.0.0.8",
+            updated_at: new Date().toISOString(),
+            online: true,
+            control_ui_url: "http://control.local",
+          },
+        ],
+        total: 1,
+        page: 1,
+        page_size: 10,
+      });
+    }
+
+    if (url === "/v1/instances/i-1/tools" && method === "GET") {
+      return jsonResponse({
+        items: [
+          {
+            id: "tool-1",
+            tool_type: "mail",
+            name: "Mailpit",
+            enabled: true,
+            config: {
+              base_url: "http://127.0.0.1:33825/api/v1",
+              username: "openclaw",
+              default_from_email: "web@example.test",
+            },
+          },
+        ],
+      });
+    }
+
+    if (
+      url === "/v1/instances/i-1/tools/tool-1/mail/messages?start=0&limit=20" &&
+      method === "GET"
+    ) {
+      return jsonResponse({
+        total: 1,
+        unread: 1,
+        count: 1,
+        start: 0,
+        messages: [
+          {
+            ID: "m-1",
+            Read: false,
+            Subject: "Inbox hello",
+            Created: "2026-03-22T06:00:00.000Z",
+            Snippet: "preview line",
+            From: { Name: "Inbox", Address: "inbox@example.test" },
+            To: [{ Name: "Target", Address: "target@example.test" }],
+            Attachments: 0,
+            Tags: [],
+          },
+        ],
+      });
+    }
+
+    if (
+      url ===
+        "/v1/instances/i-1/tools/tool-1/mail/messages?query=subject%3A%22hello%22&start=0&limit=20" &&
+      method === "GET"
+    ) {
+      return jsonResponse({
+        total: 1,
+        unread: 0,
+        count: 1,
+        start: 0,
+        messages: [
+          {
+            ID: "m-2",
+            Read: true,
+            Subject: "Search hit",
+            Created: "2026-03-22T06:10:00.000Z",
+            Snippet: "matched body",
+            From: { Name: "Inbox", Address: "inbox@example.test" },
+            To: [{ Name: "Target", Address: "target@example.test" }],
+            Attachments: 0,
+            Tags: [],
+          },
+        ],
+      });
+    }
+
+    if (url === "/v1/instances/i-1/tools/tool-1/mail/messages/m-2" && method === "GET") {
+      return jsonResponse({
+        ID: "m-2",
+        Subject: "Search hit",
+        Text: "detail body",
+        HTML: "",
+        From: { Name: "Inbox", Address: "inbox@example.test" },
+        To: [{ Name: "Target", Address: "target@example.test" }],
+      });
+    }
+
+    if (url === "/v1/instances/i-1/tools/tool-1/mail/send" && method === "POST") {
+      sentBody = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      return jsonResponse({ ID: "mail-1" });
+    }
+
+    throw new Error(`unexpected ${method} ${url}`);
+  });
+  vi.stubGlobal("fetch", fetchMock);
+
+  render(<InstancesPage />);
+
+  await screen.findByText("北京主控");
+
+  fireEvent.click(screen.getByRole("button", { name: "工具" }));
+  expect(await screen.findByRole("dialog", { name: "实例工具" })).toBeTruthy();
+  fireEvent.click(await screen.findByRole("button", { name: "Mailpit" }));
+
+  expect(await screen.findByText("Inbox hello")).toBeTruthy();
+
+  fireEvent.change(screen.getByPlaceholderText('subject:"hello"'), {
+    target: { value: 'subject:"hello"' },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "搜索" }));
+  expect(await screen.findByText("Search hit")).toBeTruthy();
+
+  fireEvent.click(screen.getByRole("button", { name: "查看 Search hit" }));
+  expect(await screen.findByText("detail body")).toBeTruthy();
+
+  fireEvent.change(screen.getByLabelText("发件人邮箱"), {
+    target: { value: "web@example.test" },
+  });
+  fireEvent.change(screen.getByLabelText("收件人邮箱"), {
+    target: { value: "target@example.test" },
+  });
+  fireEvent.change(screen.getByLabelText("主题"), {
+    target: { value: "HTTP send example" },
+  });
+  fireEvent.change(screen.getByLabelText("纯文本正文"), {
+    target: { value: "hello from http api" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "发送邮件" }));
+
+  expect(await screen.findByText("发送成功：mail-1")).toBeTruthy();
+  expect(sentBody).toEqual({
+    from_email: "web@example.test",
+    from_name: "",
+    to_email: "target@example.test",
+    to_name: "",
+    subject: "HTTP send example",
+    text: "hello from http api",
+    html: "",
+  });
+});

@@ -16,6 +16,75 @@ export type InstanceSummary = {
   skills_snapshot_at?: string | null;
 };
 
+export type InstanceToolConfig = {
+  base_url?: string;
+  username?: string;
+  default_from_email?: string;
+  default_from_name?: string;
+};
+
+export type InstanceToolItem = {
+  id: string;
+  tool_type: string;
+  name: string;
+  enabled: boolean;
+  config: InstanceToolConfig;
+};
+
+export type InstanceMailAddress = {
+  Name?: string | null;
+  Address?: string | null;
+  Email?: string | null;
+};
+
+export type InstanceMailMessageItem = {
+  ID: string;
+  MessageID?: string | null;
+  Read?: boolean;
+  From?: InstanceMailAddress | null;
+  To?: InstanceMailAddress[] | null;
+  Subject?: string | null;
+  Created?: string | null;
+  Date?: string | null;
+  Snippet?: string | null;
+  Tags?: string[] | null;
+  Attachments?: number;
+};
+
+export type InstanceMailMessagePage = {
+  total: number;
+  unread: number;
+  count: number;
+  start: number;
+  messages: InstanceMailMessageItem[];
+};
+
+export type InstanceMailMessageDetail = {
+  ID: string;
+  MessageID?: string | null;
+  From?: InstanceMailAddress | null;
+  To?: InstanceMailAddress[] | null;
+  Cc?: InstanceMailAddress[] | null;
+  Bcc?: InstanceMailAddress[] | null;
+  ReplyTo?: InstanceMailAddress[] | null;
+  Subject?: string | null;
+  Date?: string | null;
+  Text?: string | null;
+  HTML?: string | null;
+  Attachments?: Array<Record<string, unknown>>;
+  Inline?: Array<Record<string, unknown>>;
+};
+
+export type InstanceMailSendPayload = {
+  from_email: string;
+  from_name?: string;
+  to_email: string;
+  to_name?: string;
+  subject: string;
+  text: string;
+  html?: string;
+};
+
 export type InstanceFileItem = {
   name: string;
   missing: boolean;

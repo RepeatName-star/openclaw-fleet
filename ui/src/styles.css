@@ -467,6 +467,10 @@ textarea {
   box-shadow: var(--shadow);
 }
 
+.modal.modal-wide {
+  width: min(1180px, 94vw);
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -479,6 +483,51 @@ textarea {
   flex-direction: column;
   gap: 12px;
   overflow: hidden;
+}
+
+.tools-modal-body {
+  overflow: auto;
+}
+
+.tools-toolbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.tools-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.25fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.tool-panel {
+  min-height: 0;
+}
+
+.tools-search {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.mail-message-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mail-message-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f5f0e6;
 }
 
 .modal-actions {
@@ -610,6 +659,12 @@ textarea {
   }
   .files-layout {
     grid-template-columns: 1fr;
+  }
+  .tools-layout {
+    grid-template-columns: 1fr;
+  }
+  .mail-message-card {
+    flex-direction: column;
   }
   .table-row {
     grid-template-columns: repeat(3, minmax(0, 1fr));
